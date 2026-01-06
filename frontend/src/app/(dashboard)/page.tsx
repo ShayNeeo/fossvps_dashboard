@@ -66,13 +66,13 @@ export default function Home() {
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <Link href="/nodes">
-            <Button variant="outline" className="glass-surface flex-1 md:flex-none">
+            <Button variant="outline" className="glass-surface btn-premium flex-1 md:flex-none">
               <Plus className="w-4 h-4 mr-2" />
               Connect Node
             </Button>
           </Link>
           <Link href="/vms">
-            <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 flex-1 md:flex-none font-bold">
+            <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 btn-premium flex-1 md:flex-none font-bold">
               Launch VM
             </Button>
           </Link>

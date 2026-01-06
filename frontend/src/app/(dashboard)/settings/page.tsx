@@ -144,7 +144,7 @@ export default function SettingsPage() {
                                         <Button
                                             onClick={handleSaveProfile}
                                             disabled={isSaving}
-                                            className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 min-w-[140px]"
+                                            className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 min-w-[140px] btn-premium"
                                         >
                                             {isSaving ? (
                                                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Verifying...</>
@@ -167,7 +167,7 @@ export default function SettingsPage() {
                                                     <p className="font-semibold">Two-Factor Authentication</p>
                                                     <p className="text-sm text-muted-foreground">Add an extra layer of security to your account.</p>
                                                 </div>
-                                                <Button variant="outline" onClick={handleToggle2FA} className="glass-surface border-white/10">Enable</Button>
+                                                <Button variant="outline" onClick={handleToggle2FA} className="glass-surface border-white/10 btn-premium">Enable</Button>
                                             </div>
                                             <Separator className="bg-white/5" />
                                             <div className="flex justify-between items-center">
@@ -175,7 +175,7 @@ export default function SettingsPage() {
                                                     <p className="font-semibold">API Tokens</p>
                                                     <p className="text-sm text-muted-foreground">Generate tokens for automated infrastructure access.</p>
                                                 </div>
-                                                <Button variant="outline" className="glass-surface border-white/10">Manage</Button>
+                                                <Button variant="outline" className="glass-surface border-white/10 btn-premium">Manage</Button>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -187,7 +187,7 @@ export default function SettingsPage() {
                                         <CardDescription>Irreversible actions for your account and infrastructure.</CardDescription>
                                     </CardHeader>
                                     <CardContent>
-                                        <Button variant="destructive" onClick={handleDangerAction} className="shadow-lg shadow-destructive/20">
+                                        <Button variant="destructive" onClick={handleDangerAction} className="shadow-lg shadow-destructive/20 btn-premium">
                                             Reset Infrastructure Data
                                         </Button>
                                     </CardContent>

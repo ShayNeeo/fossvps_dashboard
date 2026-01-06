@@ -84,7 +84,7 @@ export default function SupportPage() {
                                 <CardDescription>{support.desc}</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <Button variant="secondary" className="w-full glass-surface border-white/5">
+                                <Button variant="secondary" className="w-full glass-surface border-white/5 btn-premium">
                                     {support.action}
                                 </Button>
                             </CardContent>
@@ -102,7 +102,7 @@ export default function SupportPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center pb-8">
-                        <Button className="bg-primary hover:bg-primary/90 px-12 h-12 rounded-xl font-bold">
+                        <Button className="bg-primary hover:bg-primary/90 px-12 h-12 rounded-xl font-bold btn-premium">
                             Open Support Ticket
                         </Button>
                     </CardContent>

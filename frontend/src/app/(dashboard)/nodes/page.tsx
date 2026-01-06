@@ -101,7 +101,7 @@ function NodesPageContent() {
 
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogTrigger asChild>
-                        <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                        <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 btn-premium">
                             <Plus className="w-4 h-4 mr-2" />
                             Add New Node
                         </Button>
@@ -245,10 +245,10 @@ function NodesPageContent() {
                                             </p>
                                         </div>
                                         <div className="flex gap-2 pt-2">
-                                            <Button variant="secondary" size="sm" className="flex-1 glass-surface border-white/5">
+                                            <Button variant="secondary" size="sm" className="flex-1 glass-surface btn-premium border-white/5">
                                                 Settings
                                             </Button>
-                                            <Button variant="destructive" size="sm" className="glass-surface border-white/5">
+                                            <Button variant="destructive" size="sm" className="glass-surface btn-premium border-white/5">
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
                                         </div>

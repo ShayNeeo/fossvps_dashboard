@@ -143,4 +143,8 @@
   .glow-primary {
     @apply shadow-[0_0_20px_-5px_hsl(var(--primary))];
   }
+
+  .btn-premium {
+    @apply border border-white/10 backdrop-blur-md shadow-lg transition-all duration-300 hover:border-white/20 active:scale-95;
+  }
 }

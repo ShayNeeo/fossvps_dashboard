@@ -35,7 +35,7 @@ export default function VMsPage() {
                     size="sm"
                     onClick={handleRefresh}
                     disabled={isLoading || isRefetching}
-                    className="glass-surface border-white/5"
+                    className="glass-surface btn-premium border-white/5"
                 >
                     <RotateCcw className={cn("w-4 h-4 mr-2", (isLoading || isRefetching) && "animate-spin")} />
                     {isLoading || isRefetching ? "Refreshing..." : "Refresh List"}
@@ -85,24 +85,24 @@ export default function VMsPage() {
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2 pt-2">
-                                            <Button variant="ghost" size="sm" className="glass-surface hover:bg-success/10 hover:text-success text-xs">
+                                            <Button variant="ghost" size="sm" className="glass-surface btn-premium hover:bg-success/10 hover:text-success text-xs">
                                                 <Play className="w-3.5 h-3.5 mr-1.5" />
                                                 Start
                                             </Button>
-                                            <Button variant="ghost" size="sm" className="glass-surface hover:bg-destructive/10 hover:text-destructive text-xs">
+                                            <Button variant="ghost" size="sm" className="glass-surface btn-premium hover:bg-destructive/10 hover:text-destructive text-xs">
                                                 <Square className="w-3.5 h-3.5 mr-1.5" />
                                                 Stop
                                             </Button>
                                         </div>
 
                                         <div className="flex gap-2">
-                                            <Button asChild variant="secondary" size="sm" className="flex-1 glass-surface border-white/5 text-xs">
+                                            <Button asChild variant="secondary" size="sm" className="flex-1 glass-surface btn-premium border-white/5 text-xs">
                                                 <Link href={`/vms/${vm.id || vm.vmid}/console`}>
                                                     <Monitor className="w-3.5 h-3.5 mr-1.5" />
                                                     Console
                                                 </Link>
                                             </Button>
-                                            <Button variant="secondary" size="sm" className="glass-surface border-white/5 text-xs">
+                                            <Button variant="secondary" size="sm" className="glass-surface btn-premium border-white/5 text-xs">
                                                 <Power className="w-3.5 h-3.5" />
                                             </Button>
                                         </div>
