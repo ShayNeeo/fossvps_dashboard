@@ -132,12 +132,12 @@ export default function Home() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/nodes?add=proxmox">
-                  <Button size="lg" className="px-8 py-6 rounded-2xl text-lg font-bold shadow-xl shadow-primary/30 w-full sm:w-auto">
+                  <Button size="lg" className="px-8 py-6 rounded-2xl text-lg font-bold shadow-xl shadow-primary/30 border border-primary/20 w-full sm:w-auto hover:scale-105 transition-transform">
                     Add Proxmox Node
                   </Button>
                 </Link>
                 <Link href="/nodes?add=incus">
-                  <Button size="lg" variant="outline" className="glass-surface px-8 py-6 rounded-2xl text-lg font-bold w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="glass-surface px-8 py-6 rounded-2xl text-lg font-bold border-white/10 shadow-xl shadow-black/20 w-full sm:w-auto hover:scale-105 transition-transform">
                     Add Incus Node
                   </Button>
                 </Link>
