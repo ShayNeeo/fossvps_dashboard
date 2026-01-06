@@ -13,6 +13,7 @@ pub fn create_router(pool: DbPool) -> Router {
         .allow_headers(Any);
 
     Router::new()
+        .route("/health", axum::routing::get(|| async { "OK" }))
         .nest("/api/v1/auth", auth::routes())
         .nest("/api/v1/nodes", nodes::routes())
         .nest("/api/v1/vms", vms::routes())
