@@ -26,6 +26,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { Separator } from "@/components/ui/separator";
 
 function NodesPageContent() {
     const queryClient = useQueryClient();
@@ -45,13 +46,14 @@ function NodesPageContent() {
         api_secret: "",
     });
 
+    // Handle initial URL parameters
     useEffect(() => {
         const addType = searchParams.get("add");
-        if (addType === "proxmox" || addType === "incus") {
+        if ((addType === "proxmox" || addType === "incus") && !isAddOpen) {
             setNewNode(prev => ({ ...prev, node_type: addType }));
             setIsAddOpen(true);
         }
-    }, [searchParams]);
+    }, [searchParams, isAddOpen]);
 
     const { data: nodes, isLoading } = useQuery({
         queryKey: ["nodes"],
@@ -83,89 +85,114 @@ function NodesPageContent() {
     };
 
     return (
-        <div className="p-8 space-y-8">
-            <div className="flex justify-between items-center">
+        <div className="p-4 md:p-8 space-y-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Infrastructure Nodes</h1>
+                    <h1 className="text-3xl font-bold tracking-tight font-display">Infrastructure <span className="text-primary">Nodes</span></h1>
                     <p className="text-muted-foreground mt-1">Manage your dedicated servers and hypervisors.</p>
                 </div>
 
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogTrigger asChild>
-                        <Button className="bg-primary hover:bg-primary/90">
+                        <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
                             <Plus className="w-4 h-4 mr-2" />
                             Add New Node
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px] glass-surface border-white/10">
-                        <DialogHeader>
-                            <DialogTitle>Add New Infrastructure Node</DialogTitle>
-                        </DialogHeader>
-                        <form onSubmit={handleAddNode} className="space-y-4 pt-4">
+                    <DialogContent className="sm:max-w-[450px] glass-surface border-white/10 p-0 overflow-hidden">
+                        <div className="bg-primary/10 px-6 py-4 border-b border-white/5 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                                <Server className="w-4 h-4 text-primary-foreground" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-lg">Add New Node</DialogTitle>
+                                <p className="text-xs text-muted-foreground">Configure your Proxmox or Incus cluster</p>
+                            </div>
+                        </div>
+                        <form onSubmit={handleAddNode} className="p-6 space-y-5">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Friendly Name</Label>
+                                <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Friendly Name</Label>
                                 <Input
                                     id="name"
                                     placeholder="e.g. Frankfurt-HV-01"
                                     value={newNode.name}
                                     onChange={(e) => setNewNode({ ...newNode, name: e.target.value })}
                                     required
-                                    className="glass-surface border-white/10"
+                                    className="glass-surface border-white/10 focus:ring-primary/50"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="type">Node Type</Label>
-                                <Select
-                                    value={newNode.node_type}
-                                    onValueChange={(value: "proxmox" | "incus") => setNewNode({ ...newNode, node_type: value })}
-                                >
-                                    <SelectTrigger className="glass-surface border-white/10">
-                                        <SelectValue placeholder="Select type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="proxmox">Proxmox VE</SelectItem>
-                                        <SelectItem value="incus">Incus (LXD)</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="type" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Provider</Label>
+                                    <Select
+                                        value={newNode.node_type}
+                                        onValueChange={(value: "proxmox" | "incus") => setNewNode({ ...newNode, node_type: value })}
+                                    >
+                                        <SelectTrigger className="glass-surface border-white/10">
+                                            <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                        <SelectContent className="glass-surface border-white/10">
+                                            <SelectItem value="proxmox">Proxmox VE</SelectItem>
+                                            <SelectItem value="incus">Incus (LXD)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="url" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">API Connection</Label>
+                                    <Input
+                                        id="url"
+                                        placeholder="ip-or-domain"
+                                        value={newNode.api_url}
+                                        onChange={(e) => setNewNode({ ...newNode, api_url: e.target.value })}
+                                        required
+                                        className="glass-surface border-white/10"
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="url">API URL</Label>
-                                <Input
-                                    id="url"
-                                    placeholder="https://ip-or-domain:8006"
-                                    value={newNode.api_url}
-                                    onChange={(e) => setNewNode({ ...newNode, api_url: e.target.value })}
-                                    required
-                                    className="glass-surface border-white/10"
-                                />
+
+                            <Separator className="bg-white/5 my-2" />
+
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="key" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                        {newNode.node_type === "proxmox" ? "Token ID (user@pve!token)" : "API Key / Username"}
+                                    </Label>
+                                    <Input
+                                        id="key"
+                                        placeholder={newNode.node_type === "proxmox" ? "user@pve!tokenid" : "admin"}
+                                        value={newNode.api_key}
+                                        onChange={(e) => setNewNode({ ...newNode, api_key: e.target.value })}
+                                        required
+                                        className="glass-surface border-white/10"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="secret" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                        {newNode.node_type === "proxmox" ? "Secret Value" : "Password / Client Secret"}
+                                    </Label>
+                                    <Input
+                                        id="secret"
+                                        type="password"
+                                        placeholder="••••••••••••••••"
+                                        value={newNode.api_secret}
+                                        onChange={(e) => setNewNode({ ...newNode, api_secret: e.target.value })}
+                                        required
+                                        className="glass-surface border-white/10"
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="key">API Key / Token ID</Label>
-                                <Input
-                                    id="key"
-                                    placeholder="user@pve!tokenid"
-                                    value={newNode.api_key}
-                                    onChange={(e) => setNewNode({ ...newNode, api_key: e.target.value })}
-                                    required
-                                    className="glass-surface border-white/10"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="secret">API Secret / Token Value</Label>
-                                <Input
-                                    id="secret"
-                                    type="password"
-                                    value={newNode.api_secret}
-                                    onChange={(e) => setNewNode({ ...newNode, api_secret: e.target.value })}
-                                    required
-                                    className="glass-surface border-white/10"
-                                />
-                            </div>
-                            <DialogFooter>
-                                <Button type="submit" disabled={createMutation.isPending} className="w-full">
-                                    {createMutation.isPending ? "Connecting..." : "Add Node"}
-                                </Button>
-                            </DialogFooter>
+
+                            <Button
+                                type="submit"
+                                disabled={createMutation.isPending}
+                                className="w-full bg-primary hover:bg-primary/90 h-11 rounded-xl font-bold font-display shadow-lg shadow-primary/20 mt-2"
+                            >
+                                {createMutation.isPending ? (
+                                    <><Activity className="w-4 h-4 mr-2 animate-spin" /> Establishing Connection...</>
+                                ) : (
+                                    "Add Infrastructure Node"
+                                )}
+                            </Button>
                         </form>
                     </DialogContent>
                 </Dialog>
