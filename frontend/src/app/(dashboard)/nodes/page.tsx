@@ -22,12 +22,14 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function NodesPage() {
+function NodesPageContent() {
     const queryClient = useQueryClient();
+    const searchParams = useSearchParams();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [newNode, setNewNode] = useState<{
         name: string;
@@ -42,6 +44,14 @@ export default function NodesPage() {
         api_key: "",
         api_secret: "",
     });
+
+    useEffect(() => {
+        const addType = searchParams.get("add");
+        if (addType === "proxmox" || addType === "incus") {
+            setNewNode(prev => ({ ...prev, node_type: addType }));
+            setIsAddOpen(true);
+        }
+    }, [searchParams]);
 
     const { data: nodes, isLoading } = useQuery({
         queryKey: ["nodes"],
@@ -100,6 +110,7 @@ export default function NodesPage() {
                                     value={newNode.name}
                                     onChange={(e) => setNewNode({ ...newNode, name: e.target.value })}
                                     required
+                                    className="glass-surface border-white/10"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -108,7 +119,7 @@ export default function NodesPage() {
                                     value={newNode.node_type}
                                     onValueChange={(value: "proxmox" | "incus") => setNewNode({ ...newNode, node_type: value })}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="glass-surface border-white/10">
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -125,6 +136,7 @@ export default function NodesPage() {
                                     value={newNode.api_url}
                                     onChange={(e) => setNewNode({ ...newNode, api_url: e.target.value })}
                                     required
+                                    className="glass-surface border-white/10"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -135,6 +147,7 @@ export default function NodesPage() {
                                     value={newNode.api_key}
                                     onChange={(e) => setNewNode({ ...newNode, api_key: e.target.value })}
                                     required
+                                    className="glass-surface border-white/10"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -145,6 +158,7 @@ export default function NodesPage() {
                                     value={newNode.api_secret}
                                     onChange={(e) => setNewNode({ ...newNode, api_secret: e.target.value })}
                                     required
+                                    className="glass-surface border-white/10"
                                 />
                             </div>
                             <DialogFooter>
@@ -220,5 +234,17 @@ export default function NodesPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function NodesPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center h-screen">
+                <Activity className="w-10 h-10 animate-spin text-primary" />
+            </div>
+        }>
+            <NodesPageContent />
+        </Suspense>
     );
 }

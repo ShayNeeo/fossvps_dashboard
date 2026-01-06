@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Terminal, Shield, Cpu, Activity, Plus, Server, Globe, Zap, Monitor } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,9 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
 import { RealtimeMetrics } from "@/components/dashboard/realtime-metrics";
+
+import { useQuery } from "@tanstack/react-query";
+import { nodeService, vmService } from "@/services/api";
 
 const container = {
   hidden: { opacity: 0 },
@@ -26,11 +30,24 @@ const item = {
 export default function Home() {
   const [mounted, setMounted] = useState(false);
 
+  const { data: nodes } = useQuery({
+    queryKey: ["nodes"],
+    queryFn: nodeService.list,
+  });
+
+  const { data: vms } = useQuery({
+    queryKey: ["vms"],
+    queryFn: vmService.list,
+  });
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) return null;
+
+  const activeNodesCount = nodes?.filter(n => n.status === 'online').length || 0;
+  const runningVmsCount = vms?.filter(v => v.status === 'running').length || 0;
 
   return (
     <motion.main
@@ -48,40 +65,45 @@ export default function Home() {
           <p className="text-muted-foreground mt-1">Status: <span className="text-success font-medium">All systems operational</span></p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <Button variant="outline" className="glass-surface flex-1 md:flex-none">
-            <Plus className="w-4 h-4 mr-2" />
-            Connect Node
-          </Button>
-          <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 flex-1 md:flex-none">
-            Launch VM
-          </Button>
+          <Link href="/nodes">
+            <Button variant="outline" className="glass-surface flex-1 md:flex-none">
+              <Plus className="w-4 h-4 mr-2" />
+              Connect Node
+            </Button>
+          </Link>
+          <Link href="/vms">
+            <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 flex-1 md:flex-none font-bold">
+              Launch VM
+            </Button>
+          </Link>
         </div>
       </motion.header>
 
       {/* Stats Grid */}
       <motion.div variants={container} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: "Active Nodes", value: "0", sub: "Out of 0", icon: Server, color: "text-primary" },
-          { label: "Running VMs", value: "0", sub: "Across all nodes", icon: Monitor, color: "text-accent-secondary" },
-          { label: "Total RAM Usage", value: "0 GB", sub: "0% Total allocated", icon: Cpu, color: "text-success" },
-          { label: "Network Throughput", value: "0 bps", sub: "Global traffic", icon: Zap, color: "text-primary" },
+          { label: "Active Nodes", value: activeNodesCount.toString(), sub: `Out of ${nodes?.length || 0}`, icon: Server, color: "text-primary", href: "/nodes" },
+          { label: "Running VMs", value: runningVmsCount.toString(), sub: "Across all nodes", icon: Monitor, color: "text-accent-secondary", href: "/vms" },
+          { label: "Total RAM Usage", value: "0 GB", sub: "0% Total allocated", icon: Cpu, color: "text-success", href: "#" },
+          { label: "Network Throughput", value: "0 bps", sub: "Global traffic", icon: Zap, color: "text-primary", href: "#" },
         ].map((stat, i) => (
-          <motion.div
-            key={i}
-            variants={item}
-            className="glass-surface p-6 rounded-2xl hover:bg-white/5 transition-colors cursor-default group relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl transition-opacity group-hover:opacity-100 opacity-0" />
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-2 rounded-lg bg-primary/10 ${stat.color}`}>
-                <stat.icon className="w-5 h-5" />
+          <Link key={i} href={stat.href}>
+            <motion.div
+              variants={item}
+              className="glass-surface p-6 rounded-2xl hover:bg-white/5 transition-colors cursor-pointer group relative overflow-hidden h-full"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl transition-opacity group-hover:opacity-100 opacity-0" />
+              <div className="flex justify-between items-start mb-4">
+                <div className={`p-2 rounded-lg bg-primary/10 ${stat.color}`}>
+                  <stat.icon className="w-5 h-5" />
+                </div>
+                <Activity className="w-4 h-4 text-muted-foreground/30" />
               </div>
-              <Activity className="w-4 h-4 text-muted-foreground/30" />
-            </div>
-            <h3 className="text-3xl font-bold text-foreground tracking-tight">{stat.value}</h3>
-            <p className="text-sm font-semibold text-muted-foreground mt-1">{stat.label}</p>
-            <p className="text-xs text-muted-foreground/50 mt-1">{stat.sub}</p>
-          </motion.div>
+              <h3 className="text-3xl font-bold text-foreground tracking-tight">{stat.value}</h3>
+              <p className="text-sm font-semibold text-muted-foreground mt-1">{stat.label}</p>
+              <p className="text-xs text-muted-foreground/50 mt-1">{stat.sub}</p>
+            </motion.div>
+          </Link>
         ))}
       </motion.div>
 
@@ -109,12 +131,16 @@ export default function Home() {
                 Unlock the power of <span className="text-foreground font-semibold font-display">FOSSVPS</span> by connecting your first Proxmox or Incus node.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="px-8 py-6 rounded-2xl text-lg font-bold shadow-xl shadow-primary/30">
-                  Add Proxmox Node
-                </Button>
-                <Button size="lg" variant="outline" className="glass-surface px-8 py-6 rounded-2xl text-lg font-bold">
-                  Add Incus Node
-                </Button>
+                <Link href="/nodes?add=proxmox">
+                  <Button size="lg" className="px-8 py-6 rounded-2xl text-lg font-bold shadow-xl shadow-primary/30 w-full sm:w-auto">
+                    Add Proxmox Node
+                  </Button>
+                </Link>
+                <Link href="/nodes?add=incus">
+                  <Button size="lg" variant="outline" className="glass-surface px-8 py-6 rounded-2xl text-lg font-bold w-full sm:w-auto">
+                    Add Incus Node
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>

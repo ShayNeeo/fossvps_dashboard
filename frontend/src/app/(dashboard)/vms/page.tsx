@@ -1,26 +1,45 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { vmService } from "@/services/api";
-import { Monitor, Server, Activity, Play, Square, RefreshCcw, Power } from "lucide-react";
+import { Monitor, Server, Activity, Play, Square, RefreshCcw, Power, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function VMsPage() {
-    const { data: vms, isLoading } = useQuery({
+    const queryClient = useQueryClient();
+    const { data: vms, isLoading, isRefetching } = useQuery({
         queryKey: ["vms"],
         queryFn: vmService.list,
-        refetchInterval: 10000, // Refresh every 10 seconds
+        refetchInterval: 10000,
     });
 
+    const handleRefresh = async () => {
+        await queryClient.invalidateQueries({ queryKey: ["vms"] });
+        toast.info("Updating virtual machine list...");
+    };
+
     return (
-        <div className="p-8 space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Virtual Machines</h1>
-                <p className="text-muted-foreground mt-1">Monitor and control your cross-node infrastructure.</p>
+        <div className="p-4 md:p-8 space-y-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight font-display">Virtual <span className="text-primary">Machines</span></h1>
+                    <p className="text-muted-foreground mt-1">Monitor and control your cross-node infrastructure.</p>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={isLoading || isRefetching}
+                    className="glass-surface border-white/5"
+                >
+                    <RotateCcw className={cn("w-4 h-4 mr-2", (isLoading || isRefetching) && "animate-spin")} />
+                    {isLoading || isRefetching ? "Refreshing..." : "Refresh List"}
+                </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
