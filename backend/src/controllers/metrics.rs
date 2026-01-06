@@ -27,7 +27,7 @@ async fn handle_socket(mut socket: WebSocket) {
         };
 
         let msg = serde_json::to_string(&update).unwrap();
-        if socket.send(Message::Text(msg)).await.is_err() {
+        if socket.send(axum::extract::ws::Message::Text(msg)).await.is_err() {
             break;
         }
 

@@ -4,8 +4,8 @@ mod db;
 mod routes;
 mod services;
 mod controllers;
-mod middleware;
-mod config;
+// mod middleware;
+// mod config;
 
 use axum::{routing::get, Router};
 use std::net::SocketAddr;

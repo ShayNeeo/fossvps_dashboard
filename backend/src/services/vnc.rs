@@ -16,14 +16,18 @@ pub async fn proxy_vnc(
 
     // Proxy loop: Client to Backend
     let client_to_backend = async {
-        while let Some(Ok(msg)) = client_receiver.next().await {
-            let backend_msg = match msg {
-                axum::extract::ws::Message::Binary(bin) => Message::Binary(bin),
-                axum::extract::ws::Message::Text(txt) => Message::Text(txt),
-                _ => continue,
-            };
-            if let Err(e) = backend_sender.send(backend_msg).await {
-                error!("Error sending to backend: {}", e);
+        while let Some(msg_result) = client_receiver.next().await {
+            if let Ok(msg) = msg_result {
+                let backend_msg = match msg {
+                    axum::extract::ws::Message::Binary(bin) => Message::Binary(bin),
+                    axum::extract::ws::Message::Text(txt) => Message::Text(txt),
+                    _ => continue,
+                };
+                if let Err(e) = backend_sender.send(backend_msg).await {
+                    error!("Error sending to backend: {}", e);
+                    break;
+                }
+            } else {
                 break;
             }
         }
@@ -31,14 +35,18 @@ pub async fn proxy_vnc(
 
     // Proxy loop: Backend to Client
     let backend_to_client = async {
-        while let Some(Ok(msg)) = backend_receiver.next().await {
-            let client_msg = match msg {
-                Message::Binary(bin) => axum::extract::ws::Message::Binary(bin),
-                Message::Text(txt) => axum::extract::ws::Message::Text(txt),
-                _ => continue,
-            };
-            if let Err(e) = client_sender.send(client_msg).await {
-                error!("Error sending to client: {}", e);
+        while let Some(msg_result) = backend_receiver.next().await {
+            if let Ok(msg) = msg_result {
+                let client_msg = match msg {
+                    Message::Binary(bin) => axum::extract::ws::Message::Binary(bin),
+                    Message::Text(txt) => axum::extract::ws::Message::Text(txt),
+                    _ => continue,
+                };
+                if let Err(e) = client_sender.send(client_msg).await {
+                    error!("Error sending to client: {}", e);
+                    break;
+                }
+            } else {
                 break;
             }
         }

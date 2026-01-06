@@ -4,10 +4,9 @@ use crate::clients::{proxmox::ProxmoxClient, incus::IncusClient, NodeClient};
 use serde_json::Value;
 
 pub async fn list_all_vms(pool: &DbPool) -> anyhow::Result<Vec<Value>> {
-    let nodes = sqlx::query_as!(
-        Node,
+    let nodes = sqlx::query_as::<_, Node>(
         r#"
-        SELECT id, name, node_type as "node_type: _", api_url, api_key, api_secret, status as "status: _", last_check, created_at
+        SELECT id, name, node_type, api_url, api_key, api_secret, status, last_check, created_at
         FROM nodes
         WHERE status = 'online'
         "#

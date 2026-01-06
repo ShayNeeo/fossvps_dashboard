@@ -1,3 +1,5 @@
+use axum::{routing::get, Router};
+use crate::db::DbPool;
 use crate::controllers::vms::list_vms;
 use crate::controllers::vnc::vnc_handler;
 
