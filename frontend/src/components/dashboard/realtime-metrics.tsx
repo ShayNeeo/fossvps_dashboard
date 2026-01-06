@@ -21,8 +21,10 @@ interface Metric {
 
 export function RealtimeMetrics() {
     const [data, setData] = useState<Metric[]>([]);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
         const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/metrics`;
         const socket = new WebSocket(wsUrl);
 
@@ -39,6 +41,10 @@ export function RealtimeMetrics() {
 
         return () => socket.close();
     }, []);
+
+    if (!mounted) {
+        return <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[200px]" />;
+    }
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
