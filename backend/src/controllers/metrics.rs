@@ -1,5 +1,5 @@
 use axum::{
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::ws::{WebSocket, WebSocketUpgrade},
     response::IntoResponse,
 };
 use serde::Serialize;

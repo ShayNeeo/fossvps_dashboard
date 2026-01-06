@@ -1,15 +1,14 @@
-use tokio::net::TcpStream;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use futures_util::{StreamExt, SinkExt};
-use tracing::{info, error};
+use tracing::error;
 
 pub async fn proxy_vnc(
     target_url: String,
-    mut client_ws: axum::extract::ws::WebSocket,
+    client_ws: axum::extract::ws::WebSocket,
 ) -> anyhow::Result<()> {
     // Connect to the Proxmox/Incus WebSocket
     // Since we're using self-signed certs mostly, we might need a custom connector
-    let (mut backend_ws, _) = connect_async(target_url).await?;
+    let (backend_ws, _) = connect_async(target_url).await?;
 
     let (mut client_sender, mut client_receiver) = client_ws.split();
     let (mut backend_sender, mut backend_receiver) = backend_ws.split();

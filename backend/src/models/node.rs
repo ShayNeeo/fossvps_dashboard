@@ -18,7 +18,7 @@ pub enum NodeStatus {
     Error,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct Node {
     pub id: Uuid,
     pub name: String,

@@ -1,11 +1,10 @@
 use axum::{
-    extract::{State, Path},
+    extract::State,
     Json,
     http::StatusCode,
 };
 use crate::db::DbPool;
 use crate::models::node::{Node, CreateNodeRequest, NodeStatus};
-use uuid::Uuid;
 
 pub async fn list_nodes(
     State(pool): State<DbPool>,

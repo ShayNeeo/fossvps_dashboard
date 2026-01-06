@@ -7,7 +7,6 @@ mod controllers;
 // mod middleware;
 // mod config;
 
-use axum::{routing::get, Router};
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use dotenvy::dotenv;
