@@ -23,7 +23,7 @@ import {
     SelectValue
 } from "@/components/ui/select";
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Separator } from "@/components/ui/separator";
@@ -31,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 function NodesPageContent() {
     const queryClient = useQueryClient();
     const searchParams = useSearchParams();
+    const router = useRouter();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [newNode, setNewNode] = useState<{
         name: string;
@@ -49,11 +50,17 @@ function NodesPageContent() {
     // Handle initial URL parameters
     useEffect(() => {
         const addType = searchParams.get("add");
-        if ((addType === "proxmox" || addType === "incus") && !isAddOpen) {
+        if (addType === "proxmox" || addType === "incus") {
             setNewNode(prev => ({ ...prev, node_type: addType }));
             setIsAddOpen(true);
+
+            // Clear the parameter from URL without refreshing the page
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("add");
+            const newPath = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+            window.history.replaceState({ ...window.history.state, as: newPath, url: newPath }, "", newPath);
         }
-    }, [searchParams, isAddOpen]);
+    }, [searchParams]);
 
     const { data: nodes, isLoading } = useQuery({
         queryKey: ["nodes"],
