@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 
 const navItems = [
@@ -36,6 +36,11 @@ export function Sidebar() {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
     const { theme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     return (
         <aside
@@ -110,7 +115,11 @@ export function Sidebar() {
                     className="w-full justify-start gap-3 px-3 rounded-xl hover:bg-primary/10 hover:text-primary"
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 >
-                    {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                    {mounted ? (
+                        theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />
+                    ) : (
+                        <div className="h-5 w-5" />
+                    )}
                     {!collapsed && <span className="font-medium">Theme Mode</span>}
                 </Button>
 
