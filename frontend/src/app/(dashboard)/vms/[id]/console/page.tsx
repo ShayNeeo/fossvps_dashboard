@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import RFB from "@novnc/novnc/core/rfb";
+import RFB from "@novnc/novnc/lib/rfb";
 import { Button } from "@/components/ui/button";
 import { Maximize2, RefreshCw, Terminal, Keyboard } from "lucide-react";
 import { toast } from "sonner";

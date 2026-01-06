@@ -1,4 +1,4 @@
-declare module "@novnc/novnc/core/rfb" {
+declare module "@novnc/novnc/lib/rfb" {
     export default class RFB {
         constructor(target: HTMLElement, url: string, options?: any);
         addEventListener(type: string, handler: (e: any) => void): void;
