@@ -48,15 +48,43 @@ impl NodeClient for ProxmoxClient {
     }
 
     async fn list_vms(&self) -> anyhow::Result<Vec<Value>> {
-        let url = format!("{}/api2/json/cluster/resources?type=vm", self.api_url);
+        // Query for all cluster resources without type filter to get both VMs and LXC containers
+        let url = format!("{}/api2/json/cluster/resources", self.api_url);
         let resp = self.client.get(&url).send().await?;
         
         if resp.status().is_success() {
             let data: Value = resp.json().await?;
-            let vms = data["data"].as_array().cloned().unwrap_or_default();
+            tracing::debug!("Proxmox API raw response: {}", serde_json::to_string_pretty(&data).unwrap_or_default());
+            
+            let all_resources = data["data"].as_array().cloned().unwrap_or_default();
+            tracing::info!("📊 Total resources from Proxmox: {}", all_resources.len());
+            
+            // Log resource types for debugging
+            for resource in &all_resources {
+                if let Some(resource_type) = resource.get("type").and_then(|t| t.as_str()) {
+                    tracing::debug!("Resource type found: {}", resource_type);
+                }
+            }
+            
+            // Filter to only include QEMU VMs and LXC containers
+            let vms: Vec<Value> = all_resources.into_iter()
+                .filter(|resource| {
+                    if let Some(resource_type) = resource.get("type").and_then(|t| t.as_str()) {
+                        let is_vm_or_container = resource_type == "qemu" || resource_type == "lxc";
+                        if is_vm_or_container {
+                            tracing::debug!("✓ Including {} resource: {:?}", resource_type, resource.get("name"));
+                        }
+                        is_vm_or_container
+                    } else {
+                        false
+                    }
+                })
+                .collect();
+            
+            tracing::info!("🎯 Filtered to {} VMs/Containers", vms.len());
             Ok(vms)
         } else {
-            anyhow::bail!("Failed to list Proxmox VMs: {}", resp.status())
+            anyhow::bail!("Failed to list Proxmox resources: {}", resp.status())
         }
     }
 
