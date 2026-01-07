@@ -135,18 +135,24 @@ export default function VNCClient({ nodeId, vmId, onStatusChange }: VNCClientPro
     }, []);
 
     return (
-        <div className="w-full h-full relative">
+        <div className="w-full h-full relative bg-card">
             {isConnecting && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm text-muted-foreground">Establishing VNC connection...</span>
+                <div className="absolute inset-0 flex items-center justify-center bg-card/95 backdrop-blur-sm z-10">
+                    <div className="flex flex-col items-center gap-4 p-8 glass-surface rounded-2xl">
+                        <div className="relative">
+                            <div className="w-12 h-12 border-3 border-primary/20 rounded-full" />
+                            <div className="absolute inset-0 w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-sm font-medium text-foreground">Establishing Connection</p>
+                            <p className="text-xs text-muted-foreground mt-1">Connecting to VNC server...</p>
+                        </div>
                     </div>
                 </div>
             )}
             <div
                 ref={canvasRef}
-                className="w-full h-full bg-black"
+                className="w-full h-full bg-neutral-900"
                 style={{ minHeight: "400px" }}
             />
         </div>

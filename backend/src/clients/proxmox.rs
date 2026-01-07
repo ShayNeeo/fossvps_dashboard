@@ -174,31 +174,59 @@ impl NodeClient for ProxmoxClient {
     }
 
     async fn get_vnc_url(&self, vm_id: &str) -> anyhow::Result<String> {
+        tracing::info!("🖥️ Getting VNC URL for VM: {}", vm_id);
+        
         let parts: Vec<&str> = vm_id.split('/').collect();
         let (node, vm_type, vmid) = if parts.len() == 3 {
             (parts[0], parts[1], parts[2])
         } else {
+            tracing::warn!("VM ID not in expected format (node/type/id), using defaults: {}", vm_id);
             ("pve", "qemu", vm_id)
         };
 
+        tracing::info!("📍 Parsed VM location - Node: {}, Type: {}, VMID: {}", node, vm_type, vmid);
+
+        // For LXC containers, we use vncproxy (same as QEMU)
         let proxy_url = format!("{}/api2/json/nodes/{}/{}/{}/vncproxy", self.api_url, node, vm_type, vmid);
-        let resp = self.client.post(&proxy_url).json(&serde_json::json!({ "websocket": 1 })).send().await?;
+        tracing::info!("🔗 Requesting VNC proxy: {}", proxy_url);
         
-        if !resp.status().is_success() {
-            let status = resp.status();
+        let resp = self.client
+            .post(&proxy_url)
+            .json(&serde_json::json!({ "websocket": 1 }))
+            .send()
+            .await?;
+        
+        let status = resp.status();
+        if !status.is_success() {
             let err_text = resp.text().await.unwrap_or_default();
+            tracing::error!("❌ VNC proxy request failed: {} - {}", status, err_text);
             anyhow::bail!("Failed to get Proxmox VNC proxy: {} - {}", status, err_text);
         }
 
         let data: Value = resp.json().await?;
-        let ticket = data["data"]["ticket"].as_str().ok_or_else(|| anyhow::anyhow!("No ticket in VNC proxy response"))?;
-        let port = data["data"]["port"].as_u64().or_else(|| data["data"]["port"].as_str().and_then(|s| s.parse().ok())).ok_or_else(|| anyhow::anyhow!("No port in VNC proxy response"))?;
+        tracing::debug!("VNC proxy response: {:?}", data);
+        
+        let ticket = data["data"]["ticket"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("No ticket in VNC proxy response"))?;
+        
+        let port = data["data"]["port"]
+            .as_u64()
+            .or_else(|| data["data"]["port"].as_str().and_then(|s| s.parse().ok()))
+            .ok_or_else(|| anyhow::anyhow!("No port in VNC proxy response"))?;
+
+        tracing::info!("🎫 Got VNC ticket, port: {}", port);
 
         // Reconstruct the websocket URL
         let ws_host = self.api_url.replace("https://", "wss://").replace("http://", "ws://");
-        let vnc_url = format!("{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
-            ws_host, node, vm_type, vmid, port, urlencoding::encode(ticket));
+        let vnc_url = format!(
+            "{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
+            ws_host, node, vm_type, vmid, port, urlencoding::encode(ticket)
+        );
+        
+        tracing::info!("🔌 VNC WebSocket URL: {}", vnc_url);
         
         Ok(vnc_url)
     }
 }
+

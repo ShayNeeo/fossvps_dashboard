@@ -10,6 +10,8 @@ pub async fn vnc_handler(
     Path((node_id, vm_id)): Path<(String, String)>,
     State(pool): State<DbPool>,
 ) -> Response {
+    tracing::info!("🖥️ VNC console request - node_id: {}, vm_id: {}", node_id, vm_id);
+    
     ws.on_upgrade(move |socket| async move {
         let node_uuid = match uuid::Uuid::parse_str(&node_id) {
             Ok(u) => u,

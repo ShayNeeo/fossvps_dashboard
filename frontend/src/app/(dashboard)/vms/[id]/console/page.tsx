@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect, use } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-import { Maximize2, RefreshCw, Terminal, Keyboard, ArrowLeft } from "lucide-react";
+import { Maximize2, RefreshCw, Terminal, Keyboard, ArrowLeft, Monitor } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -12,9 +12,9 @@ import { toast } from "sonner";
 const VNCClient = dynamic(() => import("@/components/vms/vnc-client"), {
     ssr: false,
     loading: () => (
-        <div className="w-full h-full flex items-center justify-center bg-black">
+        <div className="w-full h-full flex items-center justify-center bg-card">
             <div className="flex flex-col items-center gap-4">
-                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 <span className="text-sm text-muted-foreground">Loading VNC client...</span>
             </div>
         </div>
@@ -93,74 +93,82 @@ export default function ConsolePage({ params }: PageProps) {
 
     if (error) {
         return (
-            <div className="h-full flex flex-col items-center justify-center bg-black gap-4">
-                <div className="text-destructive text-lg">Error: {error}</div>
-                <Link href="/vms">
-                    <Button variant="outline" className="gap-2">
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to VMs
-                    </Button>
-                </Link>
+            <div className="h-full flex flex-col items-center justify-center bg-background gap-6 p-8">
+                <div className="glass-surface rounded-2xl p-8 max-w-md text-center space-y-4">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-destructive/10 flex items-center justify-center">
+                        <Monitor className="w-8 h-8 text-destructive" />
+                    </div>
+                    <h2 className="text-xl font-bold text-foreground">Connection Error</h2>
+                    <p className="text-muted-foreground">{error}</p>
+                    <Link href="/vms">
+                        <Button variant="outline" className="gap-2 mt-4">
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to VMs
+                        </Button>
+                    </Link>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="h-full flex flex-col bg-black overflow-hidden bg-dot-white/[0.05]">
+        <div className="h-full flex flex-col bg-background overflow-hidden">
             {/* Console Header */}
-            <div className="flex items-center justify-between p-4 glass-dark border-b border-white/5">
+            <div className="flex items-center justify-between p-4 glass-surface border-b border-border">
                 <div className="flex items-center gap-4">
-                    <Link href="/vms" className="text-muted-foreground hover:text-foreground transition-colors">
-                        <ArrowLeft className="w-4 h-4" />
+                    <Link href="/vms" className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-lg hover:bg-accent">
+                        <ArrowLeft className="w-5 h-5" />
                     </Link>
-                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                        <Terminal className="w-4 h-4 text-primary" />
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Terminal className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="font-bold text-sm tracking-tight">
+                        <h1 className="font-semibold text-foreground tracking-tight">
                             VM Console
                             {parsedParams && (
-                                <span className="text-muted-foreground font-normal ml-2">
+                                <span className="text-muted-foreground font-normal ml-2 text-sm">
                                     {parsedParams.vmId}
                                 </span>
                             )}
                         </h1>
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <span className={`w-1.5 h-1.5 rounded-full ${status === "Connected" ? "bg-green-500" :
-                                status === "Disconnected" || status.includes("Error") ? "bg-red-500" :
-                                    "bg-amber-500 animate-pulse"
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <span className={`w-2 h-2 rounded-full ${status === "Connected" ? "bg-success shadow-[0_0_8px_hsl(var(--success))]" :
+                                    status === "Disconnected" || status.includes("Error") ? "bg-destructive shadow-[0_0_8px_hsl(var(--destructive))]" :
+                                        "bg-amber-500 animate-pulse shadow-[0_0_8px_theme(colors.amber.500)]"
                                 }`} />
-                            {status}
-                        </p>
+                            <span className="text-xs text-muted-foreground">{status}</span>
+                        </div>
                     </div>
                 </div>
 
                 <div className="flex gap-2">
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={sendCtrlAltDel}
-                        className="h-8 text-xs glass-surface border-white/5"
+                        className="h-9 text-xs gap-2 btn-premium"
                         disabled={status !== "Connected"}
                     >
-                        <Keyboard className="w-3 h-3 mr-2" />
-                        Ctrl+Alt+Del
+                        <Keyboard className="w-4 h-4" />
+                        <span className="hidden sm:inline">Ctrl+Alt+Del</span>
                     </Button>
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="h-8 w-8 p-0 glass-surface border-white/5"
+                        className="h-9 w-9 p-0 btn-premium"
                         onClick={handleRefresh}
+                        title="Refresh"
                     >
-                        <RefreshCw className="w-3 h-3" />
+                        <RefreshCw className="w-4 h-4" />
                     </Button>
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="h-8 w-8 p-0 glass-surface border-white/5"
+                        className="h-9 w-9 p-0 btn-premium"
                         onClick={handleFullscreen}
+                        title="Fullscreen"
                     >
-                        <Maximize2 className="w-3 h-3" />
+                        <Maximize2 className="w-4 h-4" />
                     </Button>
                 </div>
             </div>
@@ -168,9 +176,9 @@ export default function ConsolePage({ params }: PageProps) {
             {/* VNC Canvas Container */}
             <div
                 ref={canvasContainerRef}
-                className="flex-1 flex items-center justify-center p-4 md:p-8 bg-[#0a0a0a]"
+                className="flex-1 flex items-center justify-center p-4 md:p-6 bg-muted/30"
             >
-                <div className="w-full h-full max-w-[1920px] max-h-[1080px] rounded-xl overflow-hidden shadow-2xl shadow-black border border-white/5 bg-black">
+                <div className="w-full h-full max-w-[1920px] max-h-[1080px] rounded-xl overflow-hidden shadow-2xl border border-border bg-card">
                     {parsedParams ? (
                         <VNCClient
                             nodeId={parsedParams.nodeId}
@@ -178,10 +186,10 @@ export default function ConsolePage({ params }: PageProps) {
                             onStatusChange={handleStatusChange}
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-full h-full flex items-center justify-center bg-card">
                             <div className="flex flex-col items-center gap-4">
-                                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                <span className="text-sm text-muted-foreground">Parsing parameters...</span>
+                                <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                <span className="text-sm text-muted-foreground">Initializing console...</span>
                             </div>
                         </div>
                     )}
@@ -189,13 +197,20 @@ export default function ConsolePage({ params }: PageProps) {
             </div>
 
             {/* Console Footer */}
-            <div className="p-2 px-4 flex justify-between items-center glass-dark border-t border-white/5">
-                <p className="text-[10px] text-muted-foreground">
-                    Protocol: <span className="text-foreground">VNC/RFB</span>
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                    Encryption: <span className="text-foreground">WSS/TLS</span>
-                </p>
+            <div className="p-3 px-4 flex justify-between items-center glass-surface border-t border-border">
+                <div className="flex items-center gap-4">
+                    <p className="text-xs text-muted-foreground">
+                        Protocol: <span className="text-foreground font-medium">VNC/RFB</span>
+                    </p>
+                    <div className="w-px h-4 bg-border" />
+                    <p className="text-xs text-muted-foreground">
+                        Encryption: <span className="text-foreground font-medium">WSS/TLS</span>
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Powered by</span>
+                    <span className="text-xs font-medium text-primary">noVNC</span>
+                </div>
             </div>
         </div>
     );
