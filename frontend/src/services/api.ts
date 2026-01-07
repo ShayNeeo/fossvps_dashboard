@@ -1,7 +1,8 @@
 import axios from "axios";
 
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1",
+    baseURL: apiBaseUrl.endsWith("/") ? apiBaseUrl : `${apiBaseUrl}/`,
 });
 
 export interface Node {
@@ -29,53 +30,53 @@ export interface VM {
 
 export const nodeService = {
     list: async () => {
-        const { data } = await api.get<Node[]>("/nodes");
+        const { data } = await api.get<Node[]>("nodes");
         return data;
     },
     create: async (node: Omit<Node, "id" | "status"> & { api_key: string, api_secret?: string }) => {
-        const { data } = await api.post<Node>("/nodes", node);
+        const { data } = await api.post<Node>("nodes", node);
         return data;
     },
     update: async (id: string, node: Partial<Omit<Node, "id" | "status">>) => {
-        const { data } = await api.patch<Node>(`/nodes/${id}`, node);
+        const { data } = await api.patch<Node>(`nodes/${id}`, node);
         return data;
     },
     delete: async (id: string) => {
-        const { data } = await api.delete(`/nodes/${id}`);
+        const { data } = await api.delete(`nodes/${id}`);
         return data;
     },
 };
 
 export const vmService = {
     list: async () => {
-        const { data } = await api.get<VM[]>("/vms");
+        const { data } = await api.get<VM[]>("vms");
         return data;
     },
     powerAction: async (node_id: string, vm_id: string, action: "start" | "stop" | "shutdown" | "reboot") => {
-        const { data } = await api.post("/vms/power", { node_id, vm_id, action });
+        const { data } = await api.post("vms/power", { node_id, vm_id, action });
         return data;
     },
     updateConfig: async (node_id: string, vm_id: string, config: any) => {
-        const { data } = await api.patch("/vms/config", { node_id, vm_id, config });
+        const { data } = await api.patch("vms/config", { node_id, vm_id, config });
         return data;
     },
     getDetails: async (node_id: string, vm_id: string) => {
-        const { data } = await api.get("/vms/details", { params: { node_id, vm_id } });
+        const { data } = await api.get("vms/details", { params: { node_id, vm_id } });
         return data;
     },
     mountMedia: async (node_id: string, vm_id: string, iso_path: string) => {
-        const { data } = await api.post("/vms/media", { node_id, vm_id, iso_path });
+        const { data } = await api.post("vms/media", { node_id, vm_id, iso_path });
         return data;
     },
 };
 
 export const supportService = {
     sendMessage: async (message: { subject: string, message: string, priority: string }) => {
-        const { data } = await api.post("/support/message", message);
+        const { data } = await api.post("support/message", message);
         return data;
     },
     getHistory: async () => {
-        const { data } = await api.get("/support/history");
+        const { data } = await api.get("support/history");
         return data;
     }
 };

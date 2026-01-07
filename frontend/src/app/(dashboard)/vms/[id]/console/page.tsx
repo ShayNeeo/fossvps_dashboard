@@ -12,11 +12,22 @@ export default function ConsolePage({ params }: { params: { id: string } }) {
     const [status, setStatus] = useState("Connecting...");
 
     useEffect(() => {
-        const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/vms/${params.id}/vnc`;
+        // Parse the combined ID (node_id:vm_id)
+        // vm_id might contain dashes if it originally had slashes (e.g. qemu-101)
+        const [nodeId, vmIdEncoded] = params.id.split(":");
+        if (!nodeId || !vmIdEncoded) {
+            setStatus("Invalid ID");
+            return;
+        }
+
+        const vmId = vmIdEncoded.replace(/-/g, "/");
+        const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/vms/console/${nodeId}/${vmId}`;
 
         if (canvasRef.current) {
             try {
-                const rfb = new RFB(canvasRef.current, wsUrl);
+                const rfb = new RFB(canvasRef.current, wsUrl, {
+                    wsProtocols: ["binary", "base64"]
+                });
 
                 rfb.addEventListener("connect", () => {
                     setStatus("Connected");
