@@ -19,24 +19,46 @@ export default function VNCClient({ nodeId, vmId, onStatusChange }: VNCClientPro
     }, [onStatusChange]);
 
     useEffect(() => {
-        if (!canvasRef.current) return;
+        console.log("[VNCClient] Effect triggered - nodeId:", nodeId, "vmId:", vmId);
+        console.log("[VNCClient] canvasRef.current:", canvasRef.current);
+
+        if (!canvasRef.current) {
+            console.log("[VNCClient] No canvas ref, returning");
+            return;
+        }
 
         let rfb: any = null;
         let cancelled = false;
 
         const initVNC = async () => {
+            console.log("[VNCClient] Starting VNC initialization...");
             try {
                 // Dynamically import noVNC RFB
+                console.log("[VNCClient] Importing noVNC RFB module...");
                 const RFBModule = await import("@novnc/novnc/lib/rfb");
                 const RFB = RFBModule.default;
+                console.log("[VNCClient] RFB module loaded:", RFB);
 
-                if (cancelled || !canvasRef.current) return;
+                if (cancelled) {
+                    console.log("[VNCClient] Initialization cancelled");
+                    return;
+                }
+
+                if (!canvasRef.current) {
+                    console.log("[VNCClient] Canvas ref lost after import");
+                    return;
+                }
 
                 const vmIdPath = vmId.replace(/-/g, "/");
-                const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/vms/console/${nodeId}/${vmIdPath}`;
+                const wsBaseUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001";
+                const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${vmIdPath}`;
+
+                console.log("[VNCClient] WebSocket URL:", wsUrl);
+                console.log("[VNCClient] Environment WS URL:", process.env.NEXT_PUBLIC_WS_URL);
 
                 updateStatus("Connecting...");
 
+                console.log("[VNCClient] Creating RFB instance...");
                 rfb = new RFB(canvasRef.current, wsUrl, {
                     wsProtocols: ["binary", "base64"],
                     credentials: { password: "" },
@@ -44,8 +66,10 @@ export default function VNCClient({ nodeId, vmId, onStatusChange }: VNCClientPro
 
                 rfb.scaleViewport = true;
                 rfb.resizeSession = true;
+                console.log("[VNCClient] RFB instance created, setting up event listeners...");
 
                 rfb.addEventListener("connect", () => {
+                    console.log("[VNCClient] Connected event received");
                     if (!cancelled) {
                         setIsConnecting(false);
                         updateStatus("Connected");
@@ -54,6 +78,7 @@ export default function VNCClient({ nodeId, vmId, onStatusChange }: VNCClientPro
                 });
 
                 rfb.addEventListener("disconnect", (e: any) => {
+                    console.log("[VNCClient] Disconnect event:", e.detail);
                     if (!cancelled) {
                         updateStatus("Disconnected");
                         if (e.detail?.clean) {
@@ -65,17 +90,18 @@ export default function VNCClient({ nodeId, vmId, onStatusChange }: VNCClientPro
                 });
 
                 rfb.addEventListener("securityfailure", (e: any) => {
+                    console.error("[VNCClient] Security failure:", e.detail);
                     if (!cancelled) {
-                        console.error("Security failure:", e.detail);
                         updateStatus("Security Error");
                         toast.error("VNC authentication failed");
                     }
                 });
 
                 rfbRef.current = rfb;
+                console.log("[VNCClient] VNC initialization complete");
             } catch (err) {
+                console.error("[VNCClient] VNC Error:", err);
                 if (!cancelled) {
-                    console.error("VNC Error:", err);
                     updateStatus("Error");
                     toast.error("Failed to initialize console");
                 }

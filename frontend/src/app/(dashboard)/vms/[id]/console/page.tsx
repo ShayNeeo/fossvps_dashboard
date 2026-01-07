@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, use } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Maximize2, RefreshCw, Terminal, Keyboard, ArrowLeft } from "lucide-react";
@@ -21,47 +21,50 @@ const VNCClient = dynamic(() => import("@/components/vms/vnc-client"), {
     ),
 });
 
-// Force this page to be client-side only
-export const dynamic_config = 'force-dynamic';
-
 interface PageProps {
     params: Promise<{ id: string }>;
 }
 
 export default function ConsolePage({ params }: PageProps) {
+    // Use React's `use` hook to unwrap the Promise (Next.js 15+ pattern)
+    const resolvedParams = use(params);
+
     const [status, setStatus] = useState("Initializing...");
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const [parsedParams, setParsedParams] = useState<{ nodeId: string; vmId: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // Handle async params (Next.js 15+)
-    useState(() => {
-        params.then((p) => {
-            if (!p || !p.id) {
-                setError("Missing VM identifier");
-                return;
-            }
+    // Parse the params on mount
+    useEffect(() => {
+        console.log("[Console] Parsing params:", resolvedParams);
 
-            const idParts = p.id.split(":");
-            if (idParts.length !== 2) {
-                setError("Invalid VM identifier format. Expected: node_id:vm_id");
-                return;
-            }
+        if (!resolvedParams || !resolvedParams.id) {
+            setError("Missing VM identifier");
+            return;
+        }
 
-            const [nodeId, vmIdEncoded] = idParts;
-            if (!nodeId || !vmIdEncoded) {
-                setError("Incomplete VM identifier");
-                return;
-            }
+        // Decode the URL-encoded ID
+        const decodedId = decodeURIComponent(resolvedParams.id);
+        console.log("[Console] Decoded ID:", decodedId);
 
-            setParsedParams({ nodeId, vmId: vmIdEncoded });
-        }).catch((err) => {
-            console.error("Params error:", err);
-            setError("Failed to parse URL parameters");
-        });
-    });
+        const idParts = decodedId.split(":");
+        if (idParts.length !== 2) {
+            setError(`Invalid VM identifier format. Expected: node_id:vm_id, got: ${decodedId}`);
+            return;
+        }
+
+        const [nodeId, vmIdEncoded] = idParts;
+        if (!nodeId || !vmIdEncoded) {
+            setError("Incomplete VM identifier");
+            return;
+        }
+
+        console.log("[Console] Parsed - NodeId:", nodeId, "VmId:", vmIdEncoded);
+        setParsedParams({ nodeId, vmId: vmIdEncoded });
+    }, [resolvedParams]);
 
     const handleStatusChange = useCallback((newStatus: string) => {
+        console.log("[Console] Status changed:", newStatus);
         setStatus(newStatus);
     }, []);
 
@@ -124,8 +127,8 @@ export default function ConsolePage({ params }: PageProps) {
                         </h1>
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                             <span className={`w-1.5 h-1.5 rounded-full ${status === "Connected" ? "bg-green-500" :
-                                    status === "Disconnected" || status.includes("Error") ? "bg-red-500" :
-                                        "bg-amber-500 animate-pulse"
+                                status === "Disconnected" || status.includes("Error") ? "bg-red-500" :
+                                    "bg-amber-500 animate-pulse"
                                 }`} />
                             {status}
                         </p>
