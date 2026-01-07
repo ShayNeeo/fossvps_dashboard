@@ -1,17 +1,30 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import RFB from "@novnc/novnc/lib/rfb";
 import { Button } from "@/components/ui/button";
 import { Maximize2, RefreshCw, Terminal, Keyboard } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ConsolePage({ params }: { params: { id: string } }) {
     const canvasRef = useRef<HTMLDivElement>(null);
-    const rfbRef = useRef<RFB | null>(null);
+    const rfbRef = useRef<any>(null);
     const [status, setStatus] = useState("Connecting...");
+    const [mounted, setMounted] = useState(false);
+    const [RFBComponent, setRFBComponent] = useState<any>(null);
+
+    // Wait for client-side mount
+    useEffect(() => {
+        setMounted(true);
+
+        // Dynamically load RFB
+        import("@novnc/novnc/lib/rfb").then((module) => {
+            setRFBComponent(() => module.default);
+        });
+    }, []);
 
     useEffect(() => {
+        if (!mounted || !RFBComponent || !canvasRef.current) return;
+
         // Validate params exists and has id
         if (!params || !params.id) {
             setStatus("Error: Missing VM identifier");
@@ -37,41 +50,48 @@ export default function ConsolePage({ params }: { params: { id: string } }) {
         const vmId = vmIdEncoded.replace(/-/g, "/");
         const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/vms/console/${nodeId}/${vmId}`;
 
-        if (canvasRef.current) {
-            try {
-                const rfb = new RFB(canvasRef.current, wsUrl, {
-                    wsProtocols: ["binary", "base64"]
-                });
+        try {
+            const rfb = new RFBComponent(canvasRef.current, wsUrl, {
+                wsProtocols: ["binary", "base64"]
+            });
 
-                rfb.addEventListener("connect", () => {
-                    setStatus("Connected");
-                    toast.success("Console connected");
-                });
+            rfb.addEventListener("connect", () => {
+                setStatus("Connected");
+                toast.success("Console connected");
+            });
 
-                rfb.addEventListener("disconnect", (e: any) => {
-                    setStatus("Disconnected");
-                    if (e.detail.clean) {
-                        toast.info("Console disconnected");
-                    } else {
-                        toast.error("Console connection lost");
-                    }
-                });
+            rfb.addEventListener("disconnect", (e: any) => {
+                setStatus("Disconnected");
+                if (e.detail.clean) {
+                    toast.info("Console disconnected");
+                } else {
+                    toast.error("Console connection lost");
+                }
+            });
 
-                rfbRef.current = rfb;
-            } catch (err) {
-                console.error("VNC Error:", err);
-                setStatus("Error");
-            }
+            rfbRef.current = rfb;
+        } catch (err) {
+            console.error("VNC Error:", err);
+            setStatus("Error");
+            toast.error("Failed to initialize console");
         }
 
         return () => {
             rfbRef.current?.disconnect();
         };
-    }, [params.id]);
+    }, [mounted, RFBComponent, params.id]);
 
     const sendCtrlAltDel = () => {
         rfbRef.current?.sendCtrlAltDel();
     };
+
+    if (!mounted) {
+        return (
+            <div className="h-full flex items-center justify-center bg-black">
+                <div className="text-white">Loading console...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col bg-black overflow-hidden bg-dot-white/[0.05]">

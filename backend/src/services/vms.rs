@@ -40,10 +40,38 @@ pub async fn list_all_vms(pool: &DbPool) -> anyhow::Result<Vec<Value>> {
         match vms_result {
             Ok(mut vms) => {
                 tracing::info!("✅ Fetched {} VMs from node {}", vms.len(), node.name);
+                
+                // Update node status to online
+                let _ = sqlx::query(
+                    r#"
+                    UPDATE nodes 
+                    SET status = 'online', last_check = NOW() 
+                    WHERE id = $1
+                    "#
+                )
+                .bind(node.id)
+                .execute(pool)
+                .await;
+                
                 for vm in vms.iter_mut() {
                     if let Some(obj) = vm.as_object_mut() {
                         obj.insert("node_id".to_string(), Value::String(node.id.to_string()));
                         obj.insert("node_name".to_string(), Value::String(node.name.clone()));
+                        
+                        // Normalize CPU field (Proxmox uses different names for QEMU vs LXC)
+                        if !obj.contains_key("cpus") {
+                            if let Some(cpu_value) = obj.get("maxcpu").or_else(|| obj.get("cpu")) {
+                                obj.insert("cpus".to_string(), cpu_value.clone());
+                            }
+                        }
+                        
+                        // Normalize memory field (ensure it's in bytes)
+                        if let Some(mem) = obj.get("maxmem") {
+                            // maxmem is already in bytes for QEMU VMs
+                            if !obj.contains_key("memory") {
+                                obj.insert("memory".to_string(), mem.clone());
+                            }
+                        }
                         
                         // Construct a unified internal ID for actions
                         if node.node_type == NodeType::Proxmox {
@@ -64,6 +92,18 @@ pub async fn list_all_vms(pool: &DbPool) -> anyhow::Result<Vec<Value>> {
             }
             Err(e) => {
                 tracing::error!("❌ Failed to list VMs for node {}: {}", node.name, e);
+                
+                // Update node status to error
+                let _ = sqlx::query(
+                    r#"
+                    UPDATE nodes 
+                    SET status = 'error', last_check = NOW() 
+                    WHERE id = $1
+                    "#
+                )
+                .bind(node.id)
+                .execute(pool)
+                .await;
             }
         }
     }
