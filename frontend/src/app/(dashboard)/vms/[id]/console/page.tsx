@@ -12,11 +12,25 @@ export default function ConsolePage({ params }: { params: { id: string } }) {
     const [status, setStatus] = useState("Connecting...");
 
     useEffect(() => {
+        // Validate params exists and has id
+        if (!params || !params.id) {
+            setStatus("Error: Missing VM identifier");
+            toast.error("Invalid console URL");
+            return;
+        }
+
         // Parse the combined ID (node_id:vm_id)
-        // vm_id might contain dashes if it originally had slashes (e.g. qemu-101)
-        const [nodeId, vmIdEncoded] = params.id.split(":");
+        const idParts = params.id.split(":");
+        if (idParts.length !== 2) {
+            setStatus("Error: Invalid VM identifier format");
+            toast.error("Console URL must be in format: node_id:vm_id");
+            return;
+        }
+
+        const [nodeId, vmIdEncoded] = idParts;
         if (!nodeId || !vmIdEncoded) {
-            setStatus("Invalid ID");
+            setStatus("Error: Incomplete VM identifier");
+            toast.error("Both node and VM ID are required");
             return;
         }
 
