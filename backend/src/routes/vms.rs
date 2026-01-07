@@ -10,5 +10,5 @@ pub fn routes() -> Router<DbPool> {
         .route("/power", post(handle_vm_power_action))
         .route("/config", patch(handle_update_vm_config))
         .route("/media", post(handle_mount_media))
-        .route("/console/:node_id/:vm_id", get(vnc_handler))
+        .route("/console/{node_id}/{*vm_id}", get(vnc_handler))
 }
