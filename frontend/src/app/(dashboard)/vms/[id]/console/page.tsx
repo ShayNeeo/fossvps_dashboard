@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Maximize2, RefreshCw, Terminal, Keyboard } from "lucide-react";
 import { toast } from "sonner";
 
+// Force this page to be client-side only
+export const dynamic = 'force-dynamic';
+
 export default function ConsolePage({ params }: { params: { id: string } }) {
     const canvasRef = useRef<HTMLDivElement>(null);
     const rfbRef = useRef<any>(null);
