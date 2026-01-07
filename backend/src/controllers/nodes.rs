@@ -57,7 +57,7 @@ pub async fn create_node(
 
 pub async fn delete_node(
     State(pool): State<DbPool>,
-    Path(id): Path<i32>,
+    Path(id): Path<uuid::Uuid>,
 ) -> Result<StatusCode, StatusCode> {
     sqlx::query("DELETE FROM nodes WHERE id = $1")
         .bind(id)
@@ -73,7 +73,7 @@ pub async fn delete_node(
 
 pub async fn get_node_details(
     State(pool): State<DbPool>,
-    Path(id): Path<i32>,
+    Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<Value>, StatusCode> {
     let node = sqlx::query_as::<_, Node>(
         r#"
