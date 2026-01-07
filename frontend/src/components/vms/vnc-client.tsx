@@ -49,15 +49,12 @@ export default function VNCClient({ nodeId, vmId, onStatusChange }: VNCClientPro
                     return;
                 }
 
-                // Convert hyphens back to slashes for the vm_id path
-                // Frontend encodes px/lxc/100 as px-lxc-100 for URL safety
-                // Backend route now uses wildcard: /console/{node_id}/{*vm_id}
-                const vmIdPath = vmId.replace(/-/g, "/");
+                // Pass vmId as-is (e.g., px-lxc-100)
+                // Backend will convert hyphens to slashes internally
                 const wsBaseUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001";
-                const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${vmIdPath}`;
+                const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${vmId}`;
 
                 console.log("[VNCClient] WebSocket URL:", wsUrl);
-                console.log("[VNCClient] VM ID Path:", vmIdPath);
                 console.log("[VNCClient] Environment WS URL:", process.env.NEXT_PUBLIC_WS_URL);
 
                 updateStatus("Connecting...");

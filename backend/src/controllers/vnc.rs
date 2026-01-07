@@ -43,8 +43,13 @@ pub async fn vnc_handler(
                     )),
                 };
 
-                // 3. Get VNC URL
-                match client.get_vnc_url(&vm_id).await {
+                // 3. Convert vm_id from URL-safe format (px-lxc-100) to path format (px/lxc/100)
+                // The frontend encodes slashes as hyphens for URL safety
+                let vm_id_path = vm_id.replace("-", "/");
+                tracing::debug!("VNC request for VM: {} -> {}", vm_id, vm_id_path);
+
+                // 4. Get VNC URL
+                match client.get_vnc_url(&vm_id_path).await {
                     Ok(target_url) => {
                         tracing::debug!("Proxying VNC to {}", target_url);
                         if let Err(e) = proxy_vnc(target_url, socket).await {
