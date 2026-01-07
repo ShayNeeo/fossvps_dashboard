@@ -1,8 +1,8 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { vmService } from "@/services/api";
-import { Monitor, Server, Activity, Play, Square, RefreshCcw, Power, RotateCcw } from "lucide-react";
+import { Monitor, Server, Activity, Play, Square, RefreshCcw, Power, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,6 +17,24 @@ export default function VMsPage() {
         queryFn: vmService.list,
         refetchInterval: 10000,
     });
+
+    const powerMutation = useMutation({
+        mutationFn: ({ node_id, vm_id, action }: { node_id: string, vm_id: string, action: "start" | "stop" | "shutdown" | "reboot" }) =>
+            vmService.powerAction(node_id, vm_id, action),
+        onSuccess: (_, { action }) => {
+            queryClient.invalidateQueries({ queryKey: ["vms"] });
+            toast.success(`Power command '${action}' sent`);
+        },
+        onError: (error: any) => {
+            toast.error("Failed to execute power action", {
+                description: error.response?.data?.message || "Internal server error"
+            });
+        }
+    });
+
+    const handlePowerAction = (node_id: string, vm_id: string, action: "start" | "stop" | "shutdown" | "reboot") => {
+        powerMutation.mutate({ node_id, vm_id, action });
+    };
 
     const handleRefresh = async () => {
         await queryClient.invalidateQueries({ queryKey: ["vms"] });
@@ -85,24 +103,50 @@ export default function VMsPage() {
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2 pt-2">
-                                            <Button variant="ghost" size="sm" className="glass-surface btn-premium hover:bg-success/10 hover:text-success text-xs">
-                                                <Play className="w-3.5 h-3.5 mr-1.5" />
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handlePowerAction(vm.node_id, vm.internal_id, "start")}
+                                                disabled={powerMutation.isPending || vm.status === "running"}
+                                                className="glass-surface btn-premium hover:bg-success/10 hover:text-success text-xs"
+                                            >
+                                                {powerMutation.isPending && powerMutation.variables?.vm_id === vm.internal_id && powerMutation.variables?.action === "start" ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <Play className="w-3.5 h-3.5 mr-1.5" />
+                                                )}
                                                 Start
                                             </Button>
-                                            <Button variant="ghost" size="sm" className="glass-surface btn-premium hover:bg-destructive/10 hover:text-destructive text-xs">
-                                                <Square className="w-3.5 h-3.5 mr-1.5" />
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handlePowerAction(vm.node_id, vm.internal_id, "stop")}
+                                                disabled={powerMutation.isPending || vm.status === "stopped" || vm.status === "offline"}
+                                                className="glass-surface btn-premium hover:bg-destructive/10 hover:text-destructive text-xs"
+                                            >
+                                                {powerMutation.isPending && powerMutation.variables?.vm_id === vm.internal_id && powerMutation.variables?.action === "stop" ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <Square className="w-3.5 h-3.5 mr-1.5" />
+                                                )}
                                                 Stop
                                             </Button>
                                         </div>
 
                                         <div className="flex gap-2">
                                             <Button asChild variant="secondary" size="sm" className="flex-1 glass-surface btn-premium border-white/5 text-xs">
-                                                <Link href={`/vms/${vm.id || vm.vmid}/console`}>
+                                                <Link href={`/vms/${vm.node_id}:${vm.internal_id.replace(/\//g, '-')}/console`}>
                                                     <Monitor className="w-3.5 h-3.5 mr-1.5" />
                                                     Console
                                                 </Link>
                                             </Button>
-                                            <Button variant="secondary" size="sm" className="glass-surface btn-premium border-white/5 text-xs">
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => handlePowerAction(vm.node_id, vm.internal_id, "shutdown")}
+                                                disabled={powerMutation.isPending || vm.status === "stopped" || vm.status === "offline"}
+                                                className="glass-surface btn-premium border-white/5 text-xs"
+                                            >
                                                 <Power className="w-3.5 h-3.5" />
                                             </Button>
                                         </div>

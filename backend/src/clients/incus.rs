@@ -39,7 +39,7 @@ impl NodeClient for IncusClient {
     }
 
     async fn list_vms(&self) -> anyhow::Result<Vec<Value>> {
-        let url = format!("{}/1.0/instances", self.api_url);
+        let url = format!("{}/1.0/instances?recursion=1", self.api_url);
         let resp = self.client.get(&url).send().await?;
         
         if resp.status().is_success() {
@@ -49,6 +49,74 @@ impl NodeClient for IncusClient {
             Ok(vms)
         } else {
             anyhow::bail!("Failed to list Incus instances: {}", resp.status())
+        }
+    }
+
+    async fn vm_power_action(&self, vm_id: &str, action: &str) -> anyhow::Result<()> {
+        let url = format!("{}/1.0/instances/{}/state", self.api_url, vm_id);
+        
+        let payload = serde_json::json!({
+            "action": action,
+            "timeout": 30,
+            "force": true
+        });
+
+        let resp = self.client.put(&url).json(&payload).send().await?;
+
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let err_text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Incus power action failed: {} - {}", action, err_text)
+        }
+    }
+
+    async fn update_vm_config(&self, vm_id: &str, config: Value) -> anyhow::Result<()> {
+        let url = format!("{}/1.0/instances/{}", self.api_url, vm_id);
+        
+        // Incus uses PATCH for configuration updates
+        let resp = self.client.patch(&url).json(&config).send().await?;
+
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let err_text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Incus config update failed: {}", err_text)
+        }
+    }
+
+    async fn get_vm_details(&self, vm_id: &str) -> anyhow::Result<Value> {
+        let url = format!("{}/1.0/instances/{}", self.api_url, vm_id);
+        let resp = self.client.get(&url).send().await?;
+
+        if resp.status().is_success() {
+            let data: Value = resp.json().await?;
+            Ok(data["metadata"].clone())
+        } else {
+            anyhow::bail!("Failed to get Incus instance details: {}", resp.status())
+        }
+    }
+
+    async fn mount_media(&self, vm_id: &str, iso_path: &str) -> anyhow::Result<()> {
+        let url = format!("{}/1.0/instances/{}", self.api_url, vm_id);
+        
+        let config = serde_json::json!({
+            "devices": {
+                "cdrom": {
+                    "type": "disk",
+                    "source": iso_path,
+                    "path": "/dev/cdrom"
+                }
+            }
+        });
+
+        let resp = self.client.patch(&url).json(&config).send().await?;
+
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let err_text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Incus media mount failed: {}", err_text)
         }
     }
 }

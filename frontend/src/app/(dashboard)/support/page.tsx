@@ -1,9 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { LifeBuoy, Mail, MessageSquare, Book, FileText, Globe } from "lucide-react";
+import { LifeBuoy, Mail, MessageSquare, Book, FileText, Globe, Send, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { supportService } from "@/services/api";
+import { toast } from "sonner";
 
 const container = {
     hidden: { opacity: 0 },
@@ -21,6 +30,38 @@ const item = {
 };
 
 export default function SupportPage() {
+    const [isTicketOpen, setIsTicketOpen] = useState(false);
+    const [ticket, setTicket] = useState({
+        subject: "",
+        priority: "normal",
+        message: ""
+    });
+
+    const mutation = useMutation({
+        mutationFn: supportService.sendMessage,
+        onSuccess: () => {
+            toast.success("Ticket submitted successfully", {
+                description: "Our engineering team will get back to you shortly."
+            });
+            setIsTicketOpen(false);
+            setTicket({ subject: "", priority: "normal", message: "" });
+        },
+        onError: () => {
+            toast.error("Failed to submit ticket", {
+                description: "Please try again later or contact us directly via email."
+            });
+        }
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!ticket.subject || !ticket.message) {
+            toast.error("Please fill in all required fields");
+            return;
+        }
+        mutation.mutate(ticket);
+    };
+
     return (
         <motion.main
             variants={container}
@@ -102,9 +143,74 @@ export default function SupportPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center pb-8">
-                        <Button className="bg-primary hover:bg-primary/90 px-12 h-12 rounded-xl font-bold btn-premium">
-                            Open Support Ticket
-                        </Button>
+                        <Dialog open={isTicketOpen} onOpenChange={setIsTicketOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="bg-primary hover:bg-primary/90 px-12 h-12 rounded-xl font-bold btn-premium">
+                                    Open Support Ticket
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[500px] glass-surface border-white/10">
+                                <DialogHeader>
+                                    <DialogTitle>Create Support Ticket</DialogTitle>
+                                    <DialogDescription>
+                                        Describe your issue and our team will investigate as soon as possible.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="subject">Subject</Label>
+                                        <Input
+                                            id="subject"
+                                            placeholder="Brief description of the issue"
+                                            value={ticket.subject}
+                                            onChange={(e) => setTicket({ ...ticket, subject: e.target.value })}
+                                            className="glass-surface border-white/10"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="priority">Priority</Label>
+                                        <Select
+                                            value={ticket.priority}
+                                            onValueChange={(v) => setTicket({ ...ticket, priority: v })}
+                                        >
+                                            <SelectTrigger className="glass-surface border-white/10">
+                                                <SelectValue placeholder="Select priority" />
+                                            </SelectTrigger>
+                                            <SelectContent className="glass-surface border-white/10">
+                                                <SelectItem value="low">Low</SelectItem>
+                                                <SelectItem value="normal">Normal</SelectItem>
+                                                <SelectItem value="high">High</SelectItem>
+                                                <SelectItem value="urgent">Urgent</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="message">Detailed Message</Label>
+                                        <Textarea
+                                            id="message"
+                                            placeholder="Provide as much detail as possible (e.g. VM ID, node name, error messages)"
+                                            rows={5}
+                                            value={ticket.message}
+                                            onChange={(e) => setTicket({ ...ticket, message: e.target.value })}
+                                            className="glass-surface border-white/10 resize-none"
+                                        />
+                                    </div>
+                                    <DialogFooter className="pt-4">
+                                        <Button
+                                            type="submit"
+                                            disabled={mutation.isPending}
+                                            className="w-full bg-primary hover:bg-primary/90 btn-premium"
+                                        >
+                                            {mutation.isPending ? (
+                                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</>
+                                            ) : (
+                                                <><Send className="w-4 h-4 mr-2" /> Submit Ticket</>
+                                            )}
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
                     </CardContent>
                 </Card>
             </motion.section>

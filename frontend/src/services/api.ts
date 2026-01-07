@@ -17,6 +17,7 @@ export interface VM {
     name: string;
     status: string;
     node_id: string;
+    internal_id: string;
     vmid?: number;
 }
 
@@ -36,8 +37,19 @@ export const vmService = {
         const { data } = await api.get<VM[]>("/vms");
         return data;
     },
-    powerAction: async (id: string, action: "start" | "stop" | "shutdown" | "reboot") => {
-        const { data } = await api.post(`/vms/${id}/power`, { action });
+    powerAction: async (node_id: string, vm_id: string, action: "start" | "stop" | "shutdown" | "reboot") => {
+        const { data } = await api.post("/vms/power", { node_id, vm_id, action });
+        return data;
+    },
+    updateConfig: async (node_id: string, vm_id: string, config: any) => {
+        const { data } = await api.patch("/vms/config", { node_id, vm_id, config });
+        return data;
+    },
+};
+
+export const supportService = {
+    sendMessage: async (message: { subject: string, message: string, priority: string }) => {
+        const { data } = await api.post("/support/message", message);
         return data;
     },
 };

@@ -59,4 +59,89 @@ impl NodeClient for ProxmoxClient {
             anyhow::bail!("Failed to list Proxmox VMs: {}", resp.status())
         }
     }
+
+    async fn vm_power_action(&self, vm_id: &str, action: &str) -> anyhow::Result<()> {
+        // Parse vm_id which might be in format "node/type/vmid" from cluster resources
+        // or just a vmid. If it's just a vmid, we might need more info.
+        // For simplicity, let's assume the frontend passes the path or we assume a default node.
+        
+        let parts: Vec<&str> = vm_id.split('/').collect();
+        let (node, vm_type, vmid) = if parts.len() == 3 {
+            (parts[0], parts[1], parts[2])
+        } else {
+            // Fallback for single node setup if only vmid is provided
+            ("pve", "qemu", vm_id)
+        };
+
+        let url = format!("{}/api2/json/nodes/{}/{}/{}/status/{}", self.api_url, node, vm_type, vmid, action);
+        let resp = self.client.post(&url).send().await?;
+
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let err_text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Proxmox power action failed: {} - {}", action, err_text)
+        }
+    }
+
+    async fn update_vm_config(&self, vm_id: &str, config: Value) -> anyhow::Result<()> {
+        let parts: Vec<&str> = vm_id.split('/').collect();
+        let (node, vm_type, vmid) = if parts.len() == 3 {
+            (parts[0], parts[1], parts[2])
+        } else {
+            ("pve", "qemu", vm_id)
+        };
+
+        let url = format!("{}/api2/json/nodes/{}/{}/{}/config", self.api_url, node, vm_type, vmid);
+        let resp = self.client.post(&url).json(&config).send().await?;
+
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let err_text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Proxmox config update failed: {}", err_text)
+        }
+    }
+
+    async fn get_vm_details(&self, vm_id: &str) -> anyhow::Result<Value> {
+        let parts: Vec<&str> = vm_id.split('/').collect();
+        let (node, vm_type, vmid) = if parts.len() == 3 {
+            (parts[0], parts[1], parts[2])
+        } else {
+            ("pve", "qemu", vm_id)
+        };
+
+        let url = format!("{}/api2/json/nodes/{}/{}/{}/config", self.api_url, node, vm_type, vmid);
+        let resp = self.client.get(&url).send().await?;
+
+        if resp.status().is_success() {
+            let data: Value = resp.json().await?;
+            Ok(data["data"].clone())
+        } else {
+            anyhow::bail!("Failed to get Proxmox VM details: {}", resp.status())
+        }
+    }
+
+    async fn mount_media(&self, vm_id: &str, iso_path: &str) -> anyhow::Result<()> {
+        let parts: Vec<&str> = vm_id.split('/').collect();
+        let (node, vm_type, vmid) = if parts.len() == 3 {
+            (parts[0], parts[1], parts[2])
+        } else {
+            ("pve", "qemu", vm_id)
+        };
+
+        let url = format!("{}/api2/json/nodes/{}/{}/{}/config", self.api_url, node, vm_type, vmid);
+        let config = serde_json::json!({
+            "ide2": format!("{},media=cdrom", iso_path)
+        });
+        
+        let resp = self.client.post(&url).json(&config).send().await?;
+
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let err_text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Proxmox media mount failed: {}", err_text)
+        }
+    }
 }

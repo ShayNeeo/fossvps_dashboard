@@ -17,6 +17,8 @@ pub fn create_router(pool: DbPool) -> Router {
         .nest("/api/v1/auth", auth::routes())
         .nest("/api/v1/nodes", nodes::routes())
         .nest("/api/v1/vms", vms::routes())
+        .route("/api/v1/support/message", axum::routing::post(crate::controllers::support::handle_support_message))
+        .route("/api/v1/support/history", axum::routing::get(crate::controllers::support::handle_support_history))
         .route("/api/v1/metrics", axum::routing::get(crate::controllers::metrics::metrics_handler))
         .layer(cors)
         .with_state(pool)
