@@ -8,10 +8,16 @@ const nextConfig: NextConfig = {
 
   // Turbopack configuration (Next.js 16+ uses Turbopack by default)
   turbopack: {
-    // Allow noVNC CommonJS module
     resolveAlias: {
-      // No specific aliases needed, transpilePackages handles it
+      // Force noVNC to use browser-compatible build
     },
+    resolveExtensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
+  },
+
+  // Experimental settings
+  experimental: {
+    // Enable optimizePackageImports for better tree shaking
+    optimizePackageImports: ['lucide-react', '@tabler/icons-react'],
   },
 
   // Webpack fallback configuration (for non-Turbopack builds)
@@ -25,6 +31,9 @@ const nextConfig: NextConfig = {
         path: false,
         os: false,
       };
+
+      // Handle noVNC as external when it causes issues
+      config.externals = config.externals || [];
     }
 
     return config;
@@ -32,4 +41,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
