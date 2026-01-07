@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 
 #[derive(Debug, Serialize, Deserialize, Type, PartialEq, Clone, Copy)]
 #[sqlx(type_name = "user_role", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum UserRole {
     Admin,
     User,

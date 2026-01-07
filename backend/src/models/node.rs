@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 
 #[derive(Debug, Serialize, Deserialize, Type, PartialEq, Clone, Copy)]
 #[sqlx(type_name = "node_type", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum NodeType {
     Proxmox,
     Incus,
@@ -12,6 +13,7 @@ pub enum NodeType {
 
 #[derive(Debug, Serialize, Deserialize, Type, PartialEq, Clone, Copy)]
 #[sqlx(type_name = "node_status", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum NodeStatus {
     Online,
     Offline,
