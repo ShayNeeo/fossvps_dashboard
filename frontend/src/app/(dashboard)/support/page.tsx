@@ -174,7 +174,7 @@ export default function SupportPage() {
                                             Open Support Ticket
                                         </Button>
                                     </DialogTrigger>
-                                    <DialogContent className="sm:max-w-[500px] glass-surface border-white/10 bg-black/60 backdrop-blur-2xl">
+                                    <DialogContent className="sm:max-w-[500px] glass-surface border-white/10 bg-background/80 dark:bg-black/80 backdrop-blur-2xl">
                                         <DialogHeader>
                                             <DialogTitle className="text-2xl font-bold font-display">Create Support Ticket</DialogTitle>
                                             <DialogDescription className="text-muted-foreground">

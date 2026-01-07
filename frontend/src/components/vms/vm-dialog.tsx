@@ -73,7 +73,7 @@ export function VMDialog({ vm, open, onOpenChange }: VMDialogProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] glass-surface border-white/10 bg-black/60 backdrop-blur-2xl">
+            <DialogContent className="sm:max-w-[500px] glass-surface border-white/10 bg-background/80 dark:bg-black/80 backdrop-blur-2xl">
                 <DialogHeader>
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 rounded-xl bg-primary/20 text-primary">
@@ -111,7 +111,7 @@ export function VMDialog({ vm, open, onOpenChange }: VMDialogProps) {
                                     type="number"
                                     value={config.cores}
                                     onChange={(e) => setConfig({ ...config, cores: parseInt(e.target.value) })}
-                                    className="glass-surface border-white/10 bg-white/5"
+                                    className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -121,7 +121,7 @@ export function VMDialog({ vm, open, onOpenChange }: VMDialogProps) {
                                     type="number"
                                     value={config.memory}
                                     onChange={(e) => setConfig({ ...config, memory: parseInt(e.target.value) })}
-                                    className="glass-surface border-white/10 bg-white/5"
+                                    className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                                 />
                             </div>
                         </div>
@@ -148,7 +148,7 @@ export function VMDialog({ vm, open, onOpenChange }: VMDialogProps) {
                                     placeholder="e.g. local:iso/ubuntu-22.04.iso"
                                     value={isoPath}
                                     onChange={(e) => setIsoPath(e.target.value)}
-                                    className="glass-surface border-white/10 bg-white/5"
+                                    className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                                 />
                             </div>
                             <p className="text-xs text-muted-foreground italic">

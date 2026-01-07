@@ -109,7 +109,7 @@ function NodesPageContent() {
                             Add New Node
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[450px] glass-surface border-white/10 p-0 overflow-hidden bg-black/60 backdrop-blur-2xl">
+                    <DialogContent className="sm:max-w-[450px] glass-surface border-white/10 p-0 overflow-hidden bg-background/80 dark:bg-black/80 backdrop-blur-2xl">
                         <div className="bg-primary/10 px-6 py-4 border-b border-white/5 flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center glow-primary">
                                 <Server className="w-4 h-4 text-primary-foreground" />
@@ -128,7 +128,7 @@ function NodesPageContent() {
                                     value={newNode.name}
                                     onChange={(e) => setNewNode({ ...newNode, name: e.target.value })}
                                     required
-                                    className="glass-surface border-white/10 bg-white/5 focus:ring-primary/50"
+                                    className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 focus:ring-primary/50"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -138,10 +138,10 @@ function NodesPageContent() {
                                         value={newNode.node_type}
                                         onValueChange={(value: "proxmox" | "incus") => setNewNode({ ...newNode, node_type: value })}
                                     >
-                                        <SelectTrigger className="glass-surface border-white/10 bg-white/5">
+                                        <SelectTrigger className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5">
                                             <SelectValue placeholder="Select type" />
                                         </SelectTrigger>
-                                        <SelectContent className="glass-surface border-white/10 bg-black/80 backdrop-blur-xl">
+                                        <SelectContent className="glass-surface border-white/10 bg-background/80 dark:bg-black/80 backdrop-blur-xl">
                                             <SelectItem value="proxmox">Proxmox VE</SelectItem>
                                             <SelectItem value="incus">Incus (LXD)</SelectItem>
                                         </SelectContent>
@@ -155,12 +155,12 @@ function NodesPageContent() {
                                         value={newNode.api_url}
                                         onChange={(e) => setNewNode({ ...newNode, api_url: e.target.value })}
                                         required
-                                        className="glass-surface border-white/10 bg-white/5"
+                                        className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                                     />
                                 </div>
                             </div>
 
-                            <Separator className="bg-white/5 my-2" />
+                            <Separator className="bg-black/5 dark:bg-white/5 my-2" />
 
                             <div className="space-y-4">
                                 <div className="space-y-2">
@@ -173,7 +173,7 @@ function NodesPageContent() {
                                         value={newNode.api_key}
                                         onChange={(e) => setNewNode({ ...newNode, api_key: e.target.value })}
                                         required
-                                        className="glass-surface border-white/10 bg-white/5"
+                                        className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -187,7 +187,7 @@ function NodesPageContent() {
                                         value={newNode.api_secret}
                                         onChange={(e) => setNewNode({ ...newNode, api_secret: e.target.value })}
                                         required
-                                        className="glass-surface border-white/10 bg-white/5"
+                                        className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                                     />
                                 </div>
                             </div>

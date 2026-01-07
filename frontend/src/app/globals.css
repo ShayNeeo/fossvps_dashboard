@@ -133,11 +133,11 @@
   }
 
   .glass-surface {
-    @apply backdrop-blur-xl bg-card/40 border border-white/5 shadow-2xl transition-all duration-300;
+    @apply backdrop-blur-xl bg-background/60 dark:bg-card/40 border border-black/10 dark:border-white/5 shadow-2xl transition-all duration-300;
   }
 
   .glass-surface:hover {
-    @apply bg-card/60 border-white/10;
+    @apply bg-background/80 dark:bg-card/60 border-black/20 dark:border-white/10;
   }
 
   .glow-primary {
@@ -145,6 +145,6 @@
   }
 
   .btn-premium {
-    @apply border border-white/10 backdrop-blur-md shadow-lg transition-all duration-300 hover:border-white/20 active:scale-95;
+    @apply border border-black/5 dark:border-white/10 backdrop-blur-md shadow-lg transition-all duration-300 hover:border-black/10 dark:hover:border-white/20 active:scale-95;
   }
 }

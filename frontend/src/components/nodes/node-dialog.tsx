@@ -75,7 +75,7 @@ export function NodeDialog({ node, open, onOpenChange }: NodeDialogProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] glass-surface border-white/10 bg-black/60 backdrop-blur-2xl">
+            <DialogContent className="sm:max-w-[500px] glass-surface border-white/10 bg-background/80 dark:bg-black/80 backdrop-blur-2xl">
                 <DialogHeader>
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 rounded-xl bg-primary/20 text-primary">
