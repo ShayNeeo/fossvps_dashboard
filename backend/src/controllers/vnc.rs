@@ -31,22 +31,29 @@ pub async fn vnc_handler(
 
         match node_result {
             Ok(node) => {
+                // Compute auth header BEFORE move
+                let auth_header = match node.node_type {
+                    crate::models::node::NodeType::Proxmox => {
+                        Some(format!("PVEAPIToken={}={}", node.api_key, node.api_secret.as_deref().unwrap_or_default()))
+                    },
+                    crate::models::node::NodeType::Incus => None,
+                };
+
                 // 2. Initialize NodeClient
                 let client: Box<dyn crate::clients::NodeClient + Send + Sync> = match node.node_type {
                     crate::models::node::NodeType::Proxmox => Box::new(crate::clients::proxmox::ProxmoxClient::new(
                         node.api_url,
-                        node.api_key,
-                        node.api_secret.unwrap_or_default(),
+                        node.api_key.clone(),
+                        node.api_secret.clone().unwrap_or_default(),
                     )),
                     crate::models::node::NodeType::Incus => Box::new(crate::clients::incus::IncusClient::new(
                         node.api_url,
-                        node.api_key,
-                        node.api_secret,
+                        node.api_key.clone(),
+                        node.api_secret.clone(),
                     )),
                 };
 
                 // 3. Convert vm_id from URL-safe format (px-lxc-100) to path format (px/lxc/100)
-                // The frontend encodes slashes as hyphens for URL safety
                 let vm_id_path = vm_id.replace("-", "/");
                 tracing::debug!("VNC request for VM: {} -> {}", vm_id, vm_id_path);
 
@@ -54,7 +61,8 @@ pub async fn vnc_handler(
                 match client.get_vnc_url(&vm_id_path).await {
                     Ok(target_url) => {
                         tracing::debug!("Proxying VNC to {}", target_url);
-                        if let Err(e) = proxy_vnc(target_url, socket).await {
+                        
+                        if let Err(e) = proxy_vnc(target_url, socket, auth_header).await {
                             tracing::error!("VNC Proxy error: {}", e);
                         }
                     }

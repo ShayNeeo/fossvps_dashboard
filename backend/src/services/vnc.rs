@@ -5,13 +5,28 @@ use tracing::error;
 pub async fn proxy_vnc(
     target_url: String,
     client_ws: axum::extract::ws::WebSocket,
+    auth_header: Option<String>,
 ) -> anyhow::Result<()> {
-    // Connect to the Proxmox/Incus WebSocket
-    // Since we're using self-signed certs mostly, we might need a custom connector
-    let (backend_ws, _) = connect_async(target_url).await?;
+    use tokio_tungstenite::tungstenite::handshake::client::generate_key;
+    use axum::http::Request;
 
-    let (mut client_sender, mut client_receiver) = client_ws.split();
+    // Connect to the Proxmox/Incus WebSocket with auth if provided
+    let mut request = Request::builder()
+        .uri(&target_url)
+        .header("Host", target_url.split("://").nth(1).unwrap_or("").split('/').next().unwrap_or(""))
+        .header("Connection", "Upgrade")
+        .header("Upgrade", "websocket")
+        .header("Sec-WebSocket-Version", "13")
+        .header("Sec-WebSocket-Key", generate_key());
+
+    if let Some(auth) = auth_header {
+        request = request.header("Authorization", auth);
+    }
+
+    let (backend_ws, _) = connect_async(request.body(()).unwrap()).await?;
+
     let (mut backend_sender, mut backend_receiver) = backend_ws.split();
+    let (mut client_sender, mut client_receiver) = client_ws.split();
 
     // Proxy loop: Client to Backend
     let client_to_backend = async {
