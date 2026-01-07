@@ -8,7 +8,6 @@ pub async fn list_all_vms(pool: &DbPool) -> anyhow::Result<Vec<Value>> {
         r#"
         SELECT id, name, node_type, api_url, api_key, api_secret, status, last_check, created_at
         FROM nodes
-        WHERE status = 'online'
         "#
     )
     .fetch_all(pool)
@@ -17,50 +16,54 @@ pub async fn list_all_vms(pool: &DbPool) -> anyhow::Result<Vec<Value>> {
     let mut all_vms = Vec::new();
 
     for node in nodes {
-        match node.node_type {
+        tracing::info!("🔄 Refreshing VMs from node: {} ({})", node.name, node.api_url);
+        
+        let vms_result = match node.node_type {
             NodeType::Proxmox => {
                 let client = ProxmoxClient::new(
-                    node.api_url,
-                    node.api_key,
-                    node.api_secret.unwrap_or_default(),
+                    node.api_url.clone(),
+                    node.api_key.clone(),
+                    node.api_secret.clone().unwrap_or_default(),
                 );
-                if let Ok(mut vms) = client.list_vms().await {
-                    for vm in vms.iter_mut() {
-                        if let Some(obj) = vm.as_object_mut() {
-                            obj.insert("node_id".to_string(), Value::String(node.id.to_string()));
-                            obj.insert("node_name".to_string(), Value::String(node.name.clone()));
-                            
-                            // Construct a unified internal ID for actions: "node/type/vmid"
-                            if let (Some(node), Some(vm_id)) = (obj.get("node"), obj.get("id")) {
-                                let node_str = node.as_str().unwrap_or_default();
-                                let id_str = vm_id.as_str().unwrap_or_default();
-                                obj.insert("internal_id".to_string(), Value::String(format!("{}/{}", node_str, id_str)));
-                            }
-                        }
-                    }
-                    all_vms.extend(vms);
-                }
+                client.list_vms().await
             }
             NodeType::Incus => {
                 let client = IncusClient::new(
-                    node.api_url,
-                    node.api_key,
-                    node.api_secret,
+                    node.api_url.clone(),
+                    node.api_key.clone(),
+                    node.api_secret.clone(),
                 );
-                if let Ok(mut vms) = client.list_vms().await {
-                   for vm in vms.iter_mut() {
-                        if let Some(obj) = vm.as_object_mut() {
-                            obj.insert("node_id".to_string(), Value::String(node.id.to_string()));
-                            obj.insert("node_name".to_string(), Value::String(node.name.clone()));
-                            
+                client.list_vms().await
+            }
+        };
+
+        match vms_result {
+            Ok(mut vms) => {
+                tracing::info!("✅ Fetched {} VMs from node {}", vms.len(), node.name);
+                for vm in vms.iter_mut() {
+                    if let Some(obj) = vm.as_object_mut() {
+                        obj.insert("node_id".to_string(), Value::String(node.id.to_string()));
+                        obj.insert("node_name".to_string(), Value::String(node.name.clone()));
+                        
+                        // Construct a unified internal ID for actions
+                        if node.node_type == NodeType::Proxmox {
+                            if let (Some(node_resource), Some(vm_id)) = (obj.get("node"), obj.get("id")) {
+                                let node_str = node_resource.as_str().unwrap_or_default();
+                                let id_str = vm_id.as_str().unwrap_or_default();
+                                obj.insert("internal_id".to_string(), Value::String(format!("{}/{}", node_str, id_str)));
+                            }
+                        } else {
                             // For Incus, the identifier is the name
                             if let Some(name) = obj.get("name") {
                                 obj.insert("internal_id".to_string(), name.clone());
                             }
                         }
                     }
-                    all_vms.extend(vms);
                 }
+                all_vms.extend(vms);
+            }
+            Err(e) => {
+                tracing::error!("❌ Failed to list VMs for node {}: {}", node.name, e);
             }
         }
     }
@@ -74,7 +77,7 @@ pub async fn perform_vm_power_action(
     vm_id: &str,
     action: &str,
 ) -> anyhow::Result<()> {
-    let node_id_int: i32 = node_id.parse()?;
+    let node_uuid = uuid::Uuid::parse_str(node_id)?;
     
     let node = sqlx::query_as::<_, Node>(
         r#"
@@ -83,7 +86,7 @@ pub async fn perform_vm_power_action(
         WHERE id = $1
         "#
     )
-    .bind(node_id_int)
+    .bind(node_uuid)
     .fetch_one(pool)
     .await?;
 
@@ -113,7 +116,7 @@ pub async fn update_vm_resources(
     vm_id: &str,
     config: serde_json::Value,
 ) -> anyhow::Result<()> {
-    let node_id_int: i32 = node_id.parse()?;
+    let node_uuid = uuid::Uuid::parse_str(node_id)?;
     
     let node = sqlx::query_as::<_, Node>(
         r#"
@@ -122,7 +125,7 @@ pub async fn update_vm_resources(
         WHERE id = $1
         "#
     )
-    .bind(node_id_int)
+    .bind(node_uuid)
     .fetch_one(pool)
     .await?;
 
@@ -151,7 +154,7 @@ pub async fn get_vm_info(
     node_id: &str,
     vm_id: &str,
 ) -> anyhow::Result<serde_json::Value> {
-    let node_id_int: i32 = node_id.parse()?;
+    let node_uuid = uuid::Uuid::parse_str(node_id)?;
     
     let node = sqlx::query_as::<_, Node>(
         r#"
@@ -160,7 +163,7 @@ pub async fn get_vm_info(
         WHERE id = $1
         "#
     )
-    .bind(node_id_int)
+    .bind(node_uuid)
     .fetch_one(pool)
     .await?;
 
@@ -190,7 +193,7 @@ pub async fn perform_media_action(
     vm_id: &str,
     iso_path: &str,
 ) -> anyhow::Result<()> {
-    let node_id_int: i32 = node_id.parse()?;
+    let node_uuid = uuid::Uuid::parse_str(node_id)?;
     
     let node = sqlx::query_as::<_, Node>(
         r#"
@@ -199,7 +202,7 @@ pub async fn perform_media_action(
         WHERE id = $1
         "#
     )
-    .bind(node_id_int)
+    .bind(node_uuid)
     .fetch_one(pool)
     .await?;
 
