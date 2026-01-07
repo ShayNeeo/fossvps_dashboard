@@ -22,3 +22,4 @@ frontend/.env.local
 # although usually they are part of the project documentation.
 # For now I will keep it as per your previous file if that's what you intended.
 instructions/*
+DEPLOYMENT_REVIEW.md
