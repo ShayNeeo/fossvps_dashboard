@@ -144,4 +144,33 @@ impl NodeClient for ProxmoxClient {
             anyhow::bail!("Proxmox media mount failed: {}", err_text)
         }
     }
+
+    async fn get_vnc_url(&self, vm_id: &str) -> anyhow::Result<String> {
+        let parts: Vec<&str> = vm_id.split('/').collect();
+        let (node, vm_type, vmid) = if parts.len() == 3 {
+            (parts[0], parts[1], parts[2])
+        } else {
+            ("pve", "qemu", vm_id)
+        };
+
+        let proxy_url = format!("{}/api2/json/nodes/{}/{}/{}/vncproxy", self.api_url, node, vm_type, vmid);
+        let resp = self.client.post(&proxy_url).json(&serde_json::json!({ "websocket": 1 })).send().await?;
+        
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let err_text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Failed to get Proxmox VNC proxy: {} - {}", status, err_text);
+        }
+
+        let data: Value = resp.json().await?;
+        let ticket = data["data"]["ticket"].as_str().ok_or_else(|| anyhow::anyhow!("No ticket in VNC proxy response"))?;
+        let port = data["data"]["port"].as_u64().or_else(|| data["data"]["port"].as_str().and_then(|s| s.parse().ok())).ok_or_else(|| anyhow::anyhow!("No port in VNC proxy response"))?;
+
+        // Reconstruct the websocket URL
+        let ws_host = self.api_url.replace("https://", "wss://").replace("http://", "ws://");
+        let vnc_url = format!("{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
+            ws_host, node, vm_type, vmid, port, urlencoding::encode(ticket));
+        
+        Ok(vnc_url)
+    }
 }

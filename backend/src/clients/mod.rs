@@ -12,4 +12,5 @@ pub trait NodeClient {
     async fn update_vm_config(&self, vm_id: &str, config: serde_json::Value) -> anyhow::Result<()>;
     async fn get_vm_details(&self, vm_id: &str) -> anyhow::Result<serde_json::Value>;
     async fn mount_media(&self, vm_id: &str, iso_path: &str) -> anyhow::Result<()>;
+    async fn get_vnc_url(&self, vm_id: &str) -> anyhow::Result<String>;
 }

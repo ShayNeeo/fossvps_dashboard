@@ -7,20 +7,58 @@ use crate::services::vnc::proxy_vnc;
 
 pub async fn vnc_handler(
     ws: WebSocketUpgrade,
-    Path(vm_id): Path<String>,
-    State(_pool): State<DbPool>,
+    Path((node_id, vm_id)): Path<(String, String)>,
+    State(pool): State<DbPool>,
 ) -> Response {
-    // In a real scenario, we would:
-    // 1. Look up the VM and its Node
-    // 2. Request a VNC ticket from the Node (Proxmox/Incus)
-    // 3. Construct the target WebSocket URL
-    
-    // Placeholder target for demonstration
-    let target_url = format!("wss://placeholder-node-api/vnc/{}", vm_id);
-
     ws.on_upgrade(move |socket| async move {
-        if let Err(e) = proxy_vnc(target_url, socket).await {
-            tracing::error!("VNC Proxy error: {}", e);
+        let node_uuid = match uuid::Uuid::parse_str(&node_id) {
+            Ok(u) => u,
+            Err(_) => {
+                tracing::error!("Invalid node ID: {}", node_id);
+                return;
+            }
+        };
+
+        // 1. Get Node from DB
+        let node_result = sqlx::query_as::<_, crate::models::node::Node>(
+            "SELECT id, name, node_type, api_url, api_key, api_secret, status, last_check, created_at FROM nodes WHERE id = $1"
+        )
+        .bind(node_uuid)
+        .fetch_one(&pool)
+        .await;
+
+        match node_result {
+            Ok(node) => {
+                // 2. Initialize NodeClient
+                let client: Box<dyn crate::clients::NodeClient + Send + Sync> = match node.node_type {
+                    crate::models::node::NodeType::Proxmox => Box::new(crate::clients::proxmox::ProxmoxClient::new(
+                        node.api_url,
+                        node.api_key,
+                        node.api_secret.unwrap_or_default(),
+                    )),
+                    crate::models::node::NodeType::Incus => Box::new(crate::clients::incus::IncusClient::new(
+                        node.api_url,
+                        node.api_key,
+                        node.api_secret,
+                    )),
+                };
+
+                // 3. Get VNC URL
+                match client.get_vnc_url(&vm_id).await {
+                    Ok(target_url) => {
+                        tracing::debug!("Proxying VNC to {}", target_url);
+                        if let Err(e) = proxy_vnc(target_url, socket).await {
+                            tracing::error!("VNC Proxy error: {}", e);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to get VNC URL: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to find node {}: {}", node_id, e);
+            }
         }
     })
 }
