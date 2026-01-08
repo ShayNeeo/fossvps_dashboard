@@ -22,11 +22,13 @@ pub async fn proxy_vnc(
         .header("Sec-WebSocket-Version", "13")
         .header("Sec-WebSocket-Key", generate_key());
 
-    // Pass auth as Cookie header (for Proxmox VNC tickets) or Authorization
+    // Pass auth as Cookie header for Proxmox VNC, or Authorization for others
     if let Some(auth) = auth_header {
         if auth.starts_with("PVEAuthCookie=") {
+            // Proxmox VNC requires ticket as Cookie header for WebSocket handshake
             request = request.header("Cookie", auth);
         } else {
+            // Other backends use Authorization header
             request = request.header("Authorization", auth);
         }
     }

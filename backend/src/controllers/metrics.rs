@@ -97,21 +97,19 @@ pub async fn metrics_handler(
         }
     };
 
-    // Check user role (must be admin)
-    let user_result = sqlx::query_scalar::<_, String>(
-        "SELECT role FROM users WHERE username = $1"
+    // Verify user exists (any authenticated user can view metrics)
+    let user_exists = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)"
     )
     .bind(&token_data.claims.sub)
-    .fetch_optional(&pool)
+    .fetch_one(&pool)
     .await;
 
-    match user_result {
-        Ok(Some(role)) => {
-            if role != "admin" {
-                return (StatusCode::FORBIDDEN, "Admin role required").into_response();
-            }
+    match user_exists {
+        Ok(true) => {
+            // User exists, proceed
         }
-        _ => return (StatusCode::UNAUTHORIZED, "Unknown user").into_response(),
+        _ => return (StatusCode::UNAUTHORIZED, "User not found").into_response(),
     }
 
     let node_id_filter = query.node_id.clone();

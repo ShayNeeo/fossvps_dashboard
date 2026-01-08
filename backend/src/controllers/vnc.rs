@@ -207,6 +207,7 @@ pub async fn vnc_handler(
                             ("pve", "qemu", &vm_id_path as &str)
                         };
 
+                        // Proxmox VNC WebSocket expects vncticket as query parameter
                         let vnc_url = format!(
                             "{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
                             ws_host, p_node, p_type, p_id, port, urlencoding::encode(&ticket)
@@ -225,11 +226,12 @@ pub async fn vnc_handler(
                     Ok(info) => {
                         tracing::debug!("Proxying VNC to {}", info.url);
                         
-                        // For Proxmox, pass the ticket as Cookie header
+                        // Proxmox requires the ticket as Cookie header for WebSocket handshake
+                        // The query parameter alone is not sufficient
                         let vnc_auth_header = if node.node_type == crate::models::node::NodeType::Proxmox {
                             Some(format!("PVEAuthCookie={}", info.ticket))
                         } else {
-                            auth_header
+                            auth_header  // Incus uses API token
                         };
                         
                         if let Err(e) = proxy_vnc(info.url, socket, vnc_auth_header).await {
