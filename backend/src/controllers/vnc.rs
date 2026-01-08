@@ -190,7 +190,12 @@ pub async fn vnc_handler(
                         // Proxmox VNC WebSocket: ticket authentication via query parameter only
                         tracing::info!("Initiating VNC connection for VM {}", vm_id_path);
 
-                        if let Err(e) = proxy_vnc(info.url, socket, None).await {
+                        // Use the client's Origin header (if present) for the Proxmox websocket handshake
+                        let origin_header = headers.get(header::ORIGIN)
+                            .and_then(|h| h.to_str().ok())
+                            .map(|s| s.to_string());
+
+                        if let Err(e) = proxy_vnc(info.url, socket, None, origin_header).await {
                             tracing::error!("VNC proxy failed for {}: {}", vm_id_path, e);
                         } else {
                             tracing::info!("VNC session completed for {}", vm_id_path);

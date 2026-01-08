@@ -7,6 +7,7 @@ pub async fn proxy_vnc(
     target_url: String,
     client_ws: axum::extract::ws::WebSocket,
     auth_header: Option<String>,
+    origin_header: Option<String>,
 ) -> anyhow::Result<()> {
     use tokio_tungstenite::tungstenite::handshake::client::generate_key;
     use axum::http::Request;
@@ -28,8 +29,6 @@ pub async fn proxy_vnc(
         error!("VNC connection attempted without ticket in URL");
         return Err(anyhow::anyhow!("Missing VNC ticket in URL"));
     }
-    
-    debug!("Establishing VNC WebSocket connection to {}:{}", host, port_u16.unwrap_or(8006));
 
     let mut request = Request::builder()
         .uri(&target_url)
@@ -38,8 +37,12 @@ pub async fn proxy_vnc(
         .header("Sec-WebSocket-Version", "13")
         .header("Sec-WebSocket-Key", generate_key())
         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .header("Host", format!("{}{}", host, port_suffix))
-        .header("Origin", format!("{}://{}{}", scheme, host, port_suffix));
+        .header("Host", format!("{}{}", host, port_suffix));
+
+    // Determine Origin to send: prefer caller-provided Origin (the dashboard/browser origin)
+    let origin_value = origin_header.clone().unwrap_or_else(|| format!("{}://{}{}", scheme, host, port_suffix));
+    debug!("Establishing VNC WebSocket connection to {}:{} (origin: {})", host, port_u16.unwrap_or(8006), origin_value);
+    request = request.header("Origin", origin_value);
 
     // Pass auth header if provided (API token for Proxmox/Incus, or PVEAuthCookie for Proxmox VNC)
     if let Some(auth) = auth_header {
