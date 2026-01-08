@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
-import RFB from "@novnc/novnc/lib/rfb";
 
 interface VNCClientProps {
     nodeId: string;
@@ -33,10 +32,11 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 if (cancelled || !containerRef.current) return;
 
                 // Get JWT token from localStorage
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('access_token');
                 if (!token) {
                     console.error("[VNC] No authentication token found");
                     updateStatus("Authentication required");
+                    toast.error("Please log in again");
                     return;
                 }
 
@@ -50,6 +50,9 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${vmId}?${params.toString()}`;
 
                 console.log("[VNC] Connecting to:", wsUrl.replace(/ticket=[^&]+/, 'ticket=***').replace(/token=[^&]+/, 'token=***'));
+
+                // Dynamically import RFB to avoid CommonJS issues
+                const { default: RFB } = await import('@novnc/novnc/lib/rfb');
 
                 // Create RFB instance
                 rfb = new RFB(containerRef.current, wsUrl, {

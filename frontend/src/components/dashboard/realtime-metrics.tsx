@@ -11,7 +11,10 @@ import {
     ResponsiveContainer
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, Cpu, Database } from "lucide-react";
+import { Activity, Cpu, Database, Server } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { nodeService } from "@/services/api";
 
 interface Metric {
     cpu: number;
@@ -22,10 +25,19 @@ interface Metric {
 export function RealtimeMetrics() {
     const [data, setData] = useState<Metric[]>([]);
     const [mounted, setMounted] = useState(false);
+    const [selectedNode, setSelectedNode] = useState<string>("all");
+
+    const { data: nodes } = useQuery({
+        queryKey: ["nodes"],
+        queryFn: nodeService.list,
+    });
 
     useEffect(() => {
         setMounted(true);
-        const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/metrics`;
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+
+        const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/metrics?token=${encodeURIComponent(token)}${selectedNode !== "all" ? `&node_id=${selectedNode}` : ''}`;
         const socket = new WebSocket(wsUrl);
 
         socket.onmessage = (event) => {
@@ -40,14 +52,31 @@ export function RealtimeMetrics() {
         };
 
         return () => socket.close();
-    }, []);
+    }, [selectedNode]);
 
     if (!mounted) {
         return <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[200px]" />;
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+            <div className="flex items-center gap-3">
+                <Server className="w-4 h-4 text-muted-foreground" />
+                <Select value={selectedNode} onValueChange={setSelectedNode}>
+                    <SelectTrigger className="w-[240px] glass-surface">
+                        <SelectValue placeholder="Select node" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Nodes (Aggregated)</SelectItem>
+                        {nodes?.filter(n => n.status === 'online').map((node) => (
+                            <SelectItem key={node.id} value={node.id}>
+                                {node.name} ({node.node_type})
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="glass-surface border-white/5 overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -151,6 +180,7 @@ export function RealtimeMetrics() {
                     </div>
                 </CardContent>
             </Card>
+            </div>
         </div>
     );
 }
