@@ -20,15 +20,12 @@ pub async fn proxy_vnc(
         .header("Sec-WebSocket-Version", "13")
         .header("Sec-WebSocket-Key", generate_key());
 
-    // Pass auth as Cookie header for Proxmox VNC, or Authorization for others
-    if let Some(auth) = auth_header {
-        if auth.starts_with("PVEAuthCookie=") {
-            // Proxmox VNC requires ticket as Cookie header for WebSocket handshake
-            debug!("Setting Cookie: {} (length: {})", &auth[..20.min(auth.len())], auth.len());
-            request = request.header("Cookie", auth);
-        } else {
-            request = request.header("Authorization", auth);
-        }
+    // VNC WebSocket authentication uses vncticket query parameter ONLY
+    // Do NOT send Cookie or Authorization headers - they are for regular API calls
+    // The vncticket in the URL query string is the authentication method
+    if let Some(_auth) = auth_header {
+        // Log for debugging but don't use it - vncticket param is the auth
+        debug!("VNC auth: ticket is in URL query parameter, not using headers");
     }
 
     // Add timeout to connection establishment

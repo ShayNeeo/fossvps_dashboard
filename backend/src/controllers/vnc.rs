@@ -217,15 +217,9 @@ pub async fn vnc_handler(
 
                 match vnc_info {
                     Ok(info) => {
-                        // Proxmox requires the ticket as Cookie header for WebSocket handshake
-                        // The query parameter alone is not sufficient
-                        let vnc_auth_header = if node.node_type == crate::models::node::NodeType::Proxmox {
-                            Some(format!("PVEAuthCookie={}", info.ticket))
-                        } else {
-                            auth_header  // Incus uses API token
-                        };
-                        
-                        if let Err(e) = proxy_vnc(info.url, socket, vnc_auth_header).await {
+                        // Proxmox VNC WebSocket uses vncticket query parameter for auth
+                        // NO Cookie or Authorization headers should be sent
+                        if let Err(e) = proxy_vnc(info.url, socket, None).await {
                             tracing::error!("VNC Proxy error: {}", e);
                         }
                     }
