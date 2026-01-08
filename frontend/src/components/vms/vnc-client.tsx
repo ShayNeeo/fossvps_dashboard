@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
+import RFB from "@novnc/novnc/lib/rfb";
 
 interface VNCClientProps {
     nodeId: string;
@@ -33,12 +34,6 @@ export default function VNCClient({ nodeId, vmId, onStatusChange }: VNCClientPro
         const initVNC = async () => {
             console.log("[VNCClient] Starting VNC initialization...");
             try {
-                // Dynamically import noVNC RFB
-                console.log("[VNCClient] Importing noVNC RFB module...");
-                const RFBModule = await import("@novnc/novnc/lib/rfb");
-                const RFB = RFBModule.default;
-                console.log("[VNCClient] RFB module loaded:", RFB);
-
                 if (cancelled) {
                     console.log("[VNCClient] Initialization cancelled");
                     return;
