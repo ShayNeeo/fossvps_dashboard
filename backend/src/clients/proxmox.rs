@@ -32,6 +32,20 @@ impl ProxmoxClient {
             api_token: api_key,
         }
     }
+
+    /// Generic JSON GET helper for fetching typed data from Proxmox API
+    pub async fn get_json<T: serde::de::DeserializeOwned>(&self, url: &str) -> anyhow::Result<T> {
+        let resp = self.client.get(url).send().await?;
+        
+        if resp.status().is_success() {
+            let data: Value = resp.json().await?;
+            // Proxmox wraps responses in { "data": ... }
+            let inner = data.get("data").unwrap_or(&data);
+            Ok(serde_json::from_value(inner.clone())?)
+        } else {
+            anyhow::bail!("Proxmox API request failed: {}", resp.status())
+        }
+    }
 }
 
 #[async_trait]

@@ -6,7 +6,7 @@ use axum::{Router, middleware};
 use tower_http::cors::{CorsLayer, AllowOrigin};
 use axum::http::{Method, HeaderValue};
 use crate::db::DbPool;
-use crate::middleware::{auth_middleware, admin_middleware};
+use crate::middleware::auth_middleware;
 
 pub fn create_router(pool: DbPool) -> Router {
     // Read allowed origins from env, default to localhost:3000 for dev

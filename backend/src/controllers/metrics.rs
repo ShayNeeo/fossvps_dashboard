@@ -3,20 +3,47 @@ use axum::{
     http::{StatusCode, header},
     response::IntoResponse,
 };
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::time::Duration;
 use tokio::time::sleep;
 use jsonwebtoken::decode;
 use jsonwebtoken::DecodingKey;
 use jsonwebtoken::Validation;
 use crate::controllers::auth::Claims;
+use crate::models::node::{Node, NodeType};
+use crate::clients::proxmox::ProxmoxClient;
 
 #[derive(Serialize)]
 struct MetricUpdate {
     cpu: f32,
     ram: f32,
+    disk: Option<f32>,
+    net_in: Option<f32>,
+    net_out: Option<f32>,
+    uptime: Option<u64>,
     timestamp: u64,
-    node_id: Option<String>,
+    node_id: String,
+    node_name: String,
+}
+
+#[derive(Deserialize)]
+struct ProxmoxNodeStatus {
+    cpu: Option<f64>,
+    memory: Option<ProxmoxMemory>,
+    rootfs: Option<ProxmoxRootfs>,
+    uptime: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct ProxmoxMemory {
+    used: Option<u64>,
+    total: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct ProxmoxRootfs {
+    used: Option<u64>,
+    total: Option<u64>,
 }
 
 #[derive(serde::Deserialize)]
@@ -87,29 +114,141 @@ pub async fn metrics_handler(
         _ => return (StatusCode::UNAUTHORIZED, "Unknown user").into_response(),
     }
 
-    let node_id = query.node_id.clone();
+    let node_id_filter = query.node_id.clone();
 
-    ws.on_upgrade(move |socket| handle_socket(socket, node_id))
+    ws.on_upgrade(move |socket| handle_socket(socket, node_id_filter, pool))
 }
 
-async fn handle_socket(mut socket: WebSocket, node_id: Option<String>) {
-    let mut interval = 0;
-    tracing::info!("📊 Metrics WS opened - node_id: {:?}", node_id);
+async fn handle_socket(mut socket: WebSocket, node_id_filter: Option<String>, pool: crate::db::DbPool) {
+    tracing::info!("📊 Metrics WS opened - node_id filter: {:?}", node_id_filter);
+    
     loop {
-        let update = MetricUpdate {
-            cpu: (5.0 + (interval as f32 * 0.1).sin() * 2.0 + (rand::random::<f32>() * 0.5)),
-            ram: (40.0 + (interval as f32 * 0.05).cos() * 5.0 + (rand::random::<f32>() * 1.0)),
-            timestamp: chrono::Utc::now().timestamp_millis() as u64,
-            node_id: node_id.clone(),
+        // Fetch all nodes or specific node
+        let nodes_query = if let Some(ref filter_id) = node_id_filter {
+            match uuid::Uuid::parse_str(filter_id) {
+                Ok(uuid) => {
+                    sqlx::query_as::<_, Node>(
+                        "SELECT id, name, node_type, api_url, api_key, api_secret, status, last_check, created_at FROM nodes WHERE id = $1"
+                    )
+                    .bind(uuid)
+                    .fetch_all(&pool)
+                    .await
+                }
+                Err(_) => {
+                    tracing::error!("Invalid node_id UUID: {}", filter_id);
+                    break;
+                }
+            }
+        } else {
+            sqlx::query_as::<_, Node>(
+                "SELECT id, name, node_type, api_url, api_key, api_secret, status, last_check, created_at FROM nodes"
+            )
+            .fetch_all(&pool)
+            .await
         };
 
-        let msg = serde_json::to_string(&update).unwrap();
-        if socket.send(axum::extract::ws::Message::Text(msg)).await.is_err() {
-            break;
+        let nodes = match nodes_query {
+            Ok(n) => n,
+            Err(e) => {
+                tracing::error!("Failed to fetch nodes for metrics: {}", e);
+                sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+        };
+
+        // Fetch metrics from each node
+        for node in nodes {
+            let metrics = fetch_node_metrics(&node).await;
+            
+            if let Some(update) = metrics {
+                let msg = serde_json::to_string(&update).unwrap();
+                if socket.send(axum::extract::ws::Message::Text(msg)).await.is_err() {
+                    tracing::info!("📊 Metrics WS client disconnected");
+                    return;
+                }
+            }
         }
 
-        interval += 1;
-        sleep(Duration::from_millis(1000)).await;
+        sleep(Duration::from_secs(3)).await;
     }
-    tracing::info!("📊 Metrics WS closed - node_id: {:?}", node_id);
+}
+
+async fn fetch_node_metrics(node: &Node) -> Option<MetricUpdate> {
+    match node.node_type {
+        NodeType::Proxmox => {
+            let client = ProxmoxClient::new(
+                node.api_url.clone(),
+                node.api_key.clone(),
+                node.api_secret.clone().unwrap_or_default(),
+            );
+
+            // Fetch node status from Proxmox API
+            // GET /api2/json/nodes/{node}/status
+            let status_url = format!("{}/api2/json/nodes/{}/status", node.api_url, node.name);
+            
+            match client.get_json::<ProxmoxNodeStatus>(&status_url).await {
+                Ok(status) => {
+                    let cpu_percent = status.cpu.unwrap_or(0.0) * 100.0;
+                    let ram_percent = if let Some(mem) = status.memory {
+                        if let (Some(used), Some(total)) = (mem.used, mem.total) {
+                            if total > 0 {
+                                (used as f64 / total as f64) * 100.0
+                            } else {
+                                0.0
+                            }
+                        } else {
+                            0.0
+                        }
+                    } else {
+                        0.0
+                    };
+
+                    let disk_percent = if let Some(rootfs) = status.rootfs {
+                        if let (Some(used), Some(total)) = (rootfs.used, rootfs.total) {
+                            if total > 0 {
+                                Some((used as f64 / total as f64 * 100.0) as f32)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    Some(MetricUpdate {
+                        cpu: cpu_percent as f32,
+                        ram: ram_percent as f32,
+                        disk: disk_percent,
+                        net_in: None,  // Would need /api2/json/nodes/{node}/rrddata for network stats
+                        net_out: None,
+                        uptime: status.uptime,
+                        timestamp: chrono::Utc::now().timestamp_millis() as u64,
+                        node_id: node.id.to_string(),
+                        node_name: node.name.clone(),
+                    })
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to fetch metrics from {}: {}", node.name, e);
+                    None
+                }
+            }
+        }
+        NodeType::Incus => {
+            // Incus metrics would use different API endpoints
+            // For now, return placeholder
+            Some(MetricUpdate {
+                cpu: 0.0,
+                ram: 0.0,
+                disk: None,
+                net_in: None,
+                net_out: None,
+                uptime: None,
+                timestamp: chrono::Utc::now().timestamp_millis() as u64,
+                node_id: node.id.to_string(),
+                node_name: node.name.clone(),
+            })
+        }
+    }
 }
