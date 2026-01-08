@@ -191,18 +191,21 @@ pub async fn vnc_handler(
                 let vnc_info = match (query.ticket.clone(), query.port) {
                     (Some(ticket), Some(port)) => {
                         // Reconstruct the websocket URL directly if we have everything
-                        let ws_host = node.api_url.replace("https://", "wss://").replace("http://", "ws://");
+                        let ws_host = node.api_url
+                            .replace("https://", "wss://")
+                            .replace("http://", "ws://")
+                            .trim_end_matches('/')
+                            .to_string();
                         
                         let parts: Vec<&str> = vm_id_path.split('/').collect();
                         let (p_node, p_type, p_id) = if parts.len() == 3 {
                             (parts[0], parts[1], parts[2])
                         } else {
                             // If no path format, default node to "pve" or whatever we can find
-                            // Note: Proxmox often uses "pve" as default node name
                             ("pve", "qemu", &vm_id_path as &str)
                         };
 
-                        // Proxmox VNC WebSocket expects vncticket as query parameter
+                        // Proxmox VNC WebSocket expects vncticket as query parameter.
                         let vnc_url = format!(
                             "{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
                             ws_host, p_node, p_type, p_id, port, urlencoding::encode(&ticket)
@@ -219,14 +222,9 @@ pub async fn vnc_handler(
 
                 match vnc_info {
                     Ok(info) => {
-                        // For Proxmox, the VNC endpoint often rejects API Tokens and requires the 
-                        // ticket returned by vncproxy to be passed as PVEAuthCookie.
-                        let final_auth = match node.node_type {
-                            crate::models::node::NodeType::Proxmox => {
-                                Some(format!("PVEAuthCookie={}", info.ticket))
-                            },
-                            crate::models::node::NodeType::Incus => auth_header,
-                        };
+                        // For Proxmox, use the API Token for authentication.
+                        // We pass the full auth_header (PVEAPIToken) to the proxy.
+                        let final_auth = auth_header;
 
                         if let Err(e) = proxy_vnc(info.url, socket, final_auth).await {
                             tracing::error!("VNC Proxy error: {}", e);

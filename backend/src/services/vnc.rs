@@ -14,8 +14,19 @@ pub async fn proxy_vnc(
     // Connect to the Proxmox/Incus WebSocket with auth if provided
     let uri = target_url.parse::<axum::http::Uri>()?;
     let host = uri.host().ok_or_else(|| anyhow::anyhow!("No host in target URL"))?;
-    let port = uri.port_u16().map(|p| format!(":{}", p)).unwrap_or_default();
+    let port_u16 = uri.port_u16();
+    let is_standard_port = match (uri.scheme_str(), port_u16) {
+        (Some("wss"), Some(443)) | (Some("ws"), Some(80)) | (_, None) => true,
+        _ => false,
+    };
+    
+    let port_suffix = if is_standard_port { "".to_string() } else { format!(":{}", port_u16.unwrap()) };
     let scheme = if uri.scheme_str() == Some("wss") { "https" } else { "http" };
+
+    debug!("Connecting to VNC at {} with Host: {}{} and Origin: {}://{}{}", 
+        target_url.split("vncticket=").next().unwrap_or(""), 
+        host, port_suffix, scheme, host, port_suffix
+    );
 
     let mut request = Request::builder()
         .uri(&target_url)
@@ -23,9 +34,9 @@ pub async fn proxy_vnc(
         .header("Upgrade", "websocket")
         .header("Sec-WebSocket-Version", "13")
         .header("Sec-WebSocket-Key", generate_key())
-        .header("User-Agent", "FossVPS-Dashboard/1.0")
-        .header("Host", format!("{}{}", host, port))
-        .header("Origin", format!("{}://{}{}", scheme, host, port));
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .header("Host", format!("{}{}", host, port_suffix))
+        .header("Origin", format!("{}://{}{}", scheme, host, port_suffix));
 
     // Pass auth header if provided (API token for Proxmox/Incus, or PVEAuthCookie for Proxmox VNC)
     if let Some(auth) = auth_header {
