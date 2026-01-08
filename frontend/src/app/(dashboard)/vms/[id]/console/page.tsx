@@ -1,26 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, use } from "react";
-import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Maximize2, RefreshCw, Terminal, Keyboard, ArrowLeft, Monitor } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { vmService } from "@/services/api";
-
-// Dynamically import the VNC client with SSR disabled
-// This prevents the "exports is not defined" error from noVNC
-const VNCClient = dynamic(() => import("@/components/vms/vnc-client"), {
-    ssr: false,
-    loading: () => (
-        <div className="w-full h-full flex items-center justify-center bg-card">
-            <div className="flex flex-col items-center gap-4">
-                <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm text-muted-foreground">Loading VNC client...</span>
-            </div>
-        </div>
-    ),
-});
 
 interface PageProps {
     params: Promise<{ id: string }>;
@@ -212,13 +197,37 @@ export default function ConsolePage({ params }: PageProps) {
                             </div>
                         </div>
                     ) : parsedParams && ticket ? (
-                        <VNCClient
-                            nodeId={parsedParams.nodeId}
-                            vmId={parsedParams.vmId}
-                            ticket={ticket}
-                            port={port || undefined}
-                            onStatusChange={handleStatusChange}
-                        />
+                        <div className="w-full h-full flex items-center justify-center bg-card p-8">
+                            <div className="glass-surface rounded-2xl p-8 max-w-md text-center space-y-6">
+                                <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                                    <Terminal className="w-8 h-8 text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-foreground mb-2">VNC Console Ready</h2>
+                                    <p className="text-sm text-muted-foreground">
+                                        Click the button below to open the VNC console in a new window.
+                                        This provides the best experience with full keyboard and mouse support.
+                                    </p>
+                                </div>
+                                <Button
+                                    onClick={() => {
+                                        const wsBaseUrl = process.env.NEXT_PUBLIC_WS_URL || "wss://api.dashboard.w9.nu";
+                                        const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${parsedParams.nodeId}/${parsedParams.vmId}?ticket=${encodeURIComponent(ticket)}${port ? `&port=${port}` : ''}`;
+                                        const vncUrl = `/vnc.html?url=${encodeURIComponent(wsUrl)}&vmId=${encodeURIComponent(parsedParams.vmId)}`;
+                                        window.open(vncUrl, '_blank', 'width=1280,height=800');
+                                        toast.success('VNC console opened in new window');
+                                    }}
+                                    className="gap-2 w-full"
+                                    size="lg"
+                                >
+                                    <Monitor className="w-5 h-5" />
+                                    Launch VNC Console
+                                </Button>
+                                <p className="text-xs text-muted-foreground">
+                                    Make sure to allow pop-ups for this site
+                                </p>
+                            </div>
+                        </div>
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-card">
                             <div className="flex flex-col items-center gap-4">
