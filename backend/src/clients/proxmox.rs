@@ -7,7 +7,6 @@ use super::NodeClient;
 pub struct ProxmoxClient {
     client: Client,
     api_url: String,
-    api_token: String,
 }
 
 impl ProxmoxClient {
@@ -29,7 +28,6 @@ impl ProxmoxClient {
         Self {
             client,
             api_url,
-            api_token: api_key,
         }
     }
 
@@ -205,7 +203,7 @@ impl NodeClient for ProxmoxClient {
         } else {
             // If only VMID is provided, try to resolve the actual node name instead of defaulting to "pve"
             let resolved_node = self.get_node_name().await.unwrap_or_else(|_| "pve".to_string());
-            (resolved_node, "qemu", vm_id)
+            (resolved_node.to_string(), "qemu", vm_id)
         };
 
         // For LXC containers, we use vncproxy (same as QEMU)
@@ -236,7 +234,12 @@ impl NodeClient for ProxmoxClient {
             .ok_or_else(|| anyhow::anyhow!("No port in VNC proxy response"))?;
 
         // Reconstruct the websocket URL
-        let ws_host = self.api_url.replace("https://", "wss://").replace("http://", "ws://");
+        let ws_host = self.api_url
+            .replace("https://", "wss://")
+            .replace("http://", "ws://")
+            .trim_end_matches('/')
+            .to_string();
+        
         let vnc_url = format!(
             "{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
             ws_host, node, vm_type, vmid, port, urlencoding::encode(ticket)
