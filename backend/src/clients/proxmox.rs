@@ -246,10 +246,11 @@ impl NodeClient for ProxmoxClient {
             .trim_end_matches('/')
             .to_string();
         
-        let encoded_ticket = urlencoding::encode(ticket);
+        // IMPORTANT: Proxmox VNC requires the vncticket to be sent UNENCODED
+        // Encoding it causes 401 errors
         let vnc_url = format!(
             "{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
-            ws_host, node, vm_type, vmid, port, encoded_ticket
+            ws_host, node, vm_type, vmid, port, ticket
         );
         
         tracing::debug!("🔗 Full VNC WebSocket URL: {}", vnc_url);
