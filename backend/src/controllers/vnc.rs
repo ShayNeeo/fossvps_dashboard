@@ -187,10 +187,14 @@ pub async fn vnc_handler(
 
                 match vnc_info {
                     Ok(info) => {
-                        // Proxmox VNC WebSocket authenticates via the vncticket query parameter only
-                        // Do NOT send any authentication headers (they cause 401)
-                        // The ticket is already embedded in info.url
-                        if let Err(e) = proxy_vnc(info.url, socket, None).await {
+                        // Proxmox VNC WebSocket requires BOTH:
+                        // 1. vncticket as query parameter (already in info.url)
+                        // 2. PVEAuthCookie in Cookie header (for session validation)
+                        let final_auth = Some(format!("PVEAuthCookie={}", info.ticket));
+                        
+                        tracing::debug!("🔐 Sending VNC auth with ticket length: {}", info.ticket.len());
+
+                        if let Err(e) = proxy_vnc(info.url, socket, final_auth).await {
                             tracing::error!("VNC Proxy error: {}", e);
                         }
                     }
