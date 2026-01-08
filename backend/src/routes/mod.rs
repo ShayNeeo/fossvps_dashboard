@@ -60,16 +60,17 @@ pub fn create_router(pool: DbPool) -> Router {
         .route("/support/history", axum::routing::get(crate::controllers::support::handle_support_history))
         .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware));
 
-    // Admin-only routes
-    let admin_routes = Router::new()
-        .route_layer(middleware::from_fn(admin_middleware))
-        .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware));
+    // Admin-only routes (currently empty, add routes before applying middleware)
+    // let admin_routes = Router::new()
+    //     .route("/api/v1/admin/users", axum::routing::get(crate::controllers::admin::list_users))
+    //     .route_layer(middleware::from_fn(admin_middleware))
+    //     .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware));
 
     Router::new()
         .merge(public_routes)
         .merge(websocket_routes)
         .merge(protected_routes)
-        .merge(admin_routes)
+        // .merge(admin_routes)  // Uncomment when admin routes are added
         .layer(cors)
         .with_state(pool)
 }
