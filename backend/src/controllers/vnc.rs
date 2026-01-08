@@ -159,13 +159,8 @@ pub async fn vnc_handler(
 
         match node_result {
             Ok(node) => {
-                // Compute auth header BEFORE move
-                let auth_header = match node.node_type {
-                    crate::models::node::NodeType::Proxmox => {
-                        Some(format!("PVEAPIToken={}={}", node.api_key, node.api_secret.as_deref().unwrap_or_default()))
-                    },
-                    crate::models::node::NodeType::Incus => None,
-                };
+                // Note: auth_header is not used for VNC - we use the ticket in the cookie instead
+                let _auth_header: Option<String> = None;
 
                 // 2. Initialize NodeClient
                 let client: Box<dyn crate::clients::NodeClient + Send + Sync> = match node.node_type {
@@ -187,44 +182,14 @@ pub async fn vnc_handler(
                     Err(_) => vm_id.clone(),
                 };
 
-                // 4. Get VNC Info (or use provided ticket)
-                let vnc_info = match (query.ticket.clone(), query.port) {
-                    (Some(ticket), Some(port)) => {
-                        // Reconstruct the websocket URL directly if we have everything
-                        let ws_host = node.api_url
-                            .replace("https://", "wss://")
-                            .replace("http://", "ws://")
-                            .trim_end_matches('/')
-                            .to_string();
-                        
-                        let parts: Vec<&str> = vm_id_path.split('/').collect();
-                        let (p_node, p_type, p_id) = if parts.len() == 3 {
-                            (parts[0], parts[1], parts[2])
-                        } else {
-                            // If no path format, default node to "pve" or whatever we can find
-                            ("pve", "qemu", &vm_id_path as &str)
-                        };
-
-                        // Proxmox VNC WebSocket expects vncticket as query parameter.
-                        let vnc_url = format!(
-                            "{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
-                            ws_host, p_node, p_type, p_id, port, urlencoding::encode(&ticket)
-                        );
-
-                        Ok(crate::clients::VncInfo {
-                            url: vnc_url,
-                            ticket: ticket.clone(),
-                            port,
-                        })
-                    },
-                    _ => client.get_vnc_info(&vm_id_path).await,
-                };
+                // 4. Get VNC Info (always fetch from Proxmox to ensure fresh ticket)
+                let vnc_info = client.get_vnc_info(&vm_id_path).await;
 
                 match vnc_info {
                     Ok(info) => {
-                        // For Proxmox, use the API Token for authentication.
-                        // We pass the full auth_header (PVEAPIToken) to the proxy.
-                        let final_auth = auth_header;
+                        // For Proxmox VNC, we must send the vncticket as a Cookie (PVEAuthCookie)
+                        // This is different from the API authentication
+                        let final_auth = Some(format!("PVEAuthCookie={}", info.ticket));
 
                         if let Err(e) = proxy_vnc(info.url, socket, final_auth).await {
                             tracing::error!("VNC Proxy error: {}", e);

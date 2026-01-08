@@ -1,4 +1,4 @@
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use tokio_tungstenite::{Connector, tungstenite::protocol::Message};
 use futures_util::{StreamExt, SinkExt};
 use tracing::{error, debug};
 use std::time::Duration;
@@ -48,8 +48,24 @@ pub async fn proxy_vnc(
         }
     }
 
+    // Create a TLS connector that accepts invalid certificates (for self-signed certs on internal nodes)
+    let connector = if uri.scheme_str() == Some("wss") {
+        let mut connector_builder = native_tls::TlsConnector::builder();
+        connector_builder.danger_accept_invalid_certs(true);
+        connector_builder.danger_accept_invalid_hostnames(true);
+        let tls_connector = connector_builder.build()?;
+        Some(Connector::NativeTls(tls_connector))
+    } else {
+        None
+    };
+
     // Add timeout to connection establishment
-    let connect_future = connect_async(request.body(()).unwrap());
+    let connect_future = tokio_tungstenite::connect_async_tls_with_config(
+        request.body(()).unwrap(),
+        None,
+        false,
+        connector,
+    );
     let (backend_ws, _) = match tokio::time::timeout(Duration::from_secs(10), connect_future).await {
         Ok(Ok(ws)) => ws,
         Ok(Err(e)) => {
