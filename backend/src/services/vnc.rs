@@ -14,18 +14,29 @@ pub async fn proxy_vnc(
     // Connect to the Proxmox/Incus WebSocket with auth if provided
     let mut request = Request::builder()
         .uri(&target_url)
-        .header("Host", target_url.split("://").nth(1).unwrap_or("").split('/').next().unwrap_or(""))
         .header("Connection", "Upgrade")
         .header("Upgrade", "websocket")
         .header("Sec-WebSocket-Version", "13")
-        .header("Sec-WebSocket-Key", generate_key());
+        .header("Sec-WebSocket-Key", generate_key())
+        .header("User-Agent", "FossVPS-Dashboard/1.0");
 
-    // VNC WebSocket authentication uses vncticket query parameter ONLY
-    // Do NOT send Cookie or Authorization headers - they are for regular API calls
-    // The vncticket in the URL query string is the authentication method
-    if let Some(_auth) = auth_header {
-        // Log for debugging but don't use it - vncticket param is the auth
-        debug!("VNC auth: ticket is in URL query parameter, not using headers");
+    // Proxmox often requires an Origin header for WebSocket upgrades
+    if let Ok(uri) = target_url.parse::<axum::http::Uri>() {
+        if let Some(host) = uri.host() {
+            let scheme = if uri.scheme_str() == Some("wss") { "https" } else { "http" };
+            let port = uri.port_u16().map(|p| format!(":{}", p)).unwrap_or_default();
+            request = request.header("Origin", format!("{}://{}{}", scheme, host, port));
+        }
+    }
+
+    // Pass auth header if provided (API token for Proxmox/Incus, or PVEAuthCookie for Proxmox VNC)
+    if let Some(auth) = auth_header {
+        debug!("Adding auth header to VNC connection");
+        if auth.starts_with("PVEAuthCookie=") {
+            request = request.header("Cookie", auth);
+        } else {
+            request = request.header("Authorization", auth);
+        }
     }
 
     // Add timeout to connection establishment

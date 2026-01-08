@@ -201,10 +201,11 @@ impl NodeClient for ProxmoxClient {
     async fn get_vnc_info(&self, vm_id: &str) -> anyhow::Result<super::VncInfo> {
         let parts: Vec<&str> = vm_id.split('/').collect();
         let (node, vm_type, vmid) = if parts.len() == 3 {
-            (parts[0], parts[1], parts[2])
+            (parts[0].to_string(), parts[1], parts[2])
         } else {
-            tracing::warn!("VM ID not in expected format (node/type/id), using defaults: {}", vm_id);
-            ("pve", "qemu", vm_id)
+            // If only VMID is provided, try to resolve the actual node name instead of defaulting to "pve"
+            let resolved_node = self.get_node_name().await.unwrap_or_else(|_| "pve".to_string());
+            (resolved_node, "qemu", vm_id)
         };
 
         // For LXC containers, we use vncproxy (same as QEMU)

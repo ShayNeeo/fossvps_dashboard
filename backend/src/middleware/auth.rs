@@ -85,23 +85,6 @@ pub async fn auth_middleware(
     Ok(next.run(req).await)
 }
 
-/// Middleware to verify user has admin role
-pub async fn admin_middleware(
-    req: Request,
-    next: Next,
-) -> Result<Response, StatusCode> {
-    let auth_user = req
-        .extensions()
-        .get::<AuthUserExtension>()
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-
-    if auth_user.0.role != UserRole::Admin {
-        return Err(StatusCode::FORBIDDEN);
-    }
-
-    Ok(next.run(req).await)
-}
-
 /// Response for unauthorized/forbidden access
 pub struct AuthError;
 
