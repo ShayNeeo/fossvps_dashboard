@@ -184,10 +184,11 @@
         <span>Powered by noVNC</span>
     </div>
 
-    <script type="module">
-        // Import noVNC from local files (bundled with Next.js)
-        import RFB from '/novnc/lib/rfb.js';
+    <!-- Load noVNC library - must use script tag since it's a UMD module -->
+    <script src="/novnc/lib/rfb.js"></script>
 
+    <script>
+        // noVNC RFB class is now available globally
         let rfb = null;
 
         // Parse URL parameters
@@ -227,6 +228,11 @@
             const screenDiv = document.getElementById('screen');
 
             try {
+                // Check if RFB is available
+                if (typeof RFB === 'undefined') {
+                    throw new Error('noVNC library not loaded');
+                }
+
                 rfb = new RFB(screenDiv, wsUrl, {
                     wsProtocols: ['binary', 'base64']
                 });
@@ -294,7 +300,7 @@
         };
 
         // Connect on load
-        connect();
+        window.addEventListener('load', connect);
 
         // Handle window resize
         window.addEventListener('resize', () => {
