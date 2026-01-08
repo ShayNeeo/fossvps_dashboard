@@ -67,7 +67,14 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 rfb = new RFB(canvasRef.current, wsUrl, {
                     wsProtocols: ["binary", "base64"],
                     credentials: { password: ticket || "" },
+                    focusOnClick: true,
+                    // @ts-ignore - Some versions support this in options
+                    keyboardTarget: canvasRef.current,
                 });
+
+                // Extra safety: set it explicitly as a property
+                // @ts-ignore
+                rfb.keyboardTarget = canvasRef.current;
 
                 rfb.scaleViewport = true;
                 rfb.resizeSession = true;
