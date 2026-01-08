@@ -4,7 +4,7 @@ mod db;
 mod routes;
 mod services;
 mod controllers;
-// mod middleware;
+mod middleware;
 // mod config;
 
 use std::net::SocketAddr;

@@ -45,7 +45,7 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                     credentials: { password: ticket || "" },
                 });
 
-                // Configure for best experience
+                // Configure for best experience and input capture
                 rfb.scaleViewport = true;
                 rfb.resizeSession = false;
                 rfb.showDotCursor = true;
@@ -54,6 +54,10 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 rfb.compressionLevel = 2;
                 rfb.clipViewport = false;
                 rfb.dragViewport = false;
+                
+                // Critical for input handling
+                rfb.viewOnly = false;  // Allow interaction
+                rfb.focusOnClick = true;  // Auto-focus on click
 
                 // Event handlers
                 rfb.addEventListener("connect", () => {

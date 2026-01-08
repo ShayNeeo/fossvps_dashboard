@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::Type;
+use sqlx::{Type, FromRow};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
@@ -11,7 +11,7 @@ pub enum UserRole {
     User,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct User {
     pub id: Uuid,
     pub username: String,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
     LayoutDashboard,
     Server,
@@ -12,7 +12,9 @@ import {
     ChevronRight,
     Monitor,
     Moon,
-    Sun
+    Sun,
+    LogOut,
+    User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
+import { authService } from "@/services/auth";
+import { toast } from "sonner";
 
 const navItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -34,13 +38,28 @@ const secondaryNavItems = [
 
 export function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
     const [collapsed, setCollapsed] = useState(false);
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
+    const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
         setMounted(true);
+        const userData = authService.getUser();
+        setUser(userData);
     }, []);
+
+    const handleLogout = async () => {
+        try {
+            await authService.logout();
+            toast.success("Logged out successfully");
+            router.push("/login");
+        } catch (error) {
+            console.error("Logout error:", error);
+            toast.error("Logout failed");
+        }
+    };
 
     return (
         <aside
@@ -109,6 +128,21 @@ export function Sidebar() {
 
             {/* Footer Actions */}
             <div className="p-4 mt-auto space-y-2">
+                {/* User Info */}
+                {user && !collapsed && (
+                    <div className="px-3 py-2 mb-2 rounded-xl bg-primary/5 border border-primary/10">
+                        <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
+                                <User className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{user.username}</p>
+                                <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <Button
                     variant="ghost"
                     size="icon"
@@ -121,6 +155,16 @@ export function Sidebar() {
                         <div className="h-5 w-5" />
                     )}
                     {!collapsed && <span className="font-medium">Theme Mode</span>}
+                </Button>
+
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-full justify-start gap-3 px-3 rounded-xl hover:bg-destructive/10 hover:text-destructive"
+                    onClick={handleLogout}
+                >
+                    <LogOut className="h-5 w-5" />
+                    {!collapsed && <span className="font-medium">Logout</span>}
                 </Button>
 
                 <Button

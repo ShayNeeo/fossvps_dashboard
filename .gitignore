@@ -23,3 +23,4 @@ frontend/.env.local
 # For now I will keep it as per your previous file if that's what you intended.
 instructions/*
 DEPLOYMENT_REVIEW.md
+TASK_COMPLETION_REPORT.md
