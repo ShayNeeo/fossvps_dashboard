@@ -26,11 +26,15 @@ pub async fn proxy_vnc(
     if let Some(auth) = auth_header {
         if auth.starts_with("PVEAuthCookie=") {
             // Proxmox VNC requires ticket as Cookie header for WebSocket handshake
-            request = request.header("Cookie", auth);
+            tracing::debug!("🍪 Setting Cookie header for Proxmox VNC");
+            request = request.header("Cookie", auth.clone());
         } else {
             // Other backends use Authorization header
+            tracing::debug!("🔑 Setting Authorization header");
             request = request.header("Authorization", auth);
         }
+    } else {
+        tracing::debug!("⚠️  No auth header provided for VNC connection");
     }
 
     // Add timeout to connection establishment

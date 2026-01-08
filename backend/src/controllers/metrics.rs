@@ -180,9 +180,19 @@ async fn fetch_node_metrics(node: &Node) -> Option<MetricUpdate> {
                 node.api_secret.clone().unwrap_or_default(),
             );
 
+            // Get the actual Proxmox node name from the cluster
+            let proxmox_node = match client.get_node_name().await {
+                Ok(name) => name,
+                Err(e) => {
+                    tracing::warn!("Failed to get Proxmox node name for {}: {}", node.name, e);
+                    return None;
+                }
+            };
+
             // Fetch node status from Proxmox API
             // GET /api2/json/nodes/{node}/status
-            let status_url = format!("{}/api2/json/nodes/{}/status", node.api_url, node.name);
+            let status_url = format!("{}/api2/json/nodes/{}/status", node.api_url, proxmox_node);
+            tracing::debug!("Fetching metrics from: {}", status_url);
             
             match client.get_json::<ProxmoxNodeStatus>(&status_url).await {
                 Ok(status) => {

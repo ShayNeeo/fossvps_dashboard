@@ -40,8 +40,6 @@ export default function ConsolePage({ params }: PageProps) {
     // Parse the params and fetch ticket on mount
     useEffect(() => {
         const init = async () => {
-            console.log("[Console] Parsing params:", resolvedParams);
-
             if (!resolvedParams || !resolvedParams.id) {
                 setError("Missing VM identifier");
                 return;
@@ -49,7 +47,6 @@ export default function ConsolePage({ params }: PageProps) {
 
             // Decode the entire ID first (handles double-encoding from URL routing)
             const decodedId = decodeURIComponent(resolvedParams.id);
-            console.log("[Console] Decoded ID:", decodedId);
 
             const idParts = decodedId.split(":");
             if (idParts.length !== 2) {
@@ -64,14 +61,12 @@ export default function ConsolePage({ params }: PageProps) {
             }
 
             const vmIdPath = decodeURIComponent(vmIdEncoded);
-            console.log("[Console] Parsed - NodeId:", nodeId, "VmId (path):", vmIdPath);
             setParsedParams({ nodeId, vmId: vmIdPath });
 
             // Fetch VNC ticket
             try {
                 setIsFetchingTicket(true);
                 const vncInfo = await vmService.getVncTicket(nodeId, vmIdPath);
-                console.log("[Console] Got VNC ticket info - Ticket:", !!vncInfo.ticket, "Port:", vncInfo.port);
                 setTicket(vncInfo.ticket);
                 setPort(vncInfo.port);
             } catch (err: any) {
@@ -88,7 +83,6 @@ export default function ConsolePage({ params }: PageProps) {
     }, [resolvedParams, resolvedParams?.id]);
 
     const handleStatusChange = useCallback((newStatus: string) => {
-        console.log("[Console] Status changed:", newStatus);
         setStatus(newStatus);
     }, []);
 

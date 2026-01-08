@@ -43,8 +43,33 @@ impl ProxmoxClient {
             let inner = data.get("data").unwrap_or(&data);
             Ok(serde_json::from_value(inner.clone())?)
         } else {
-            anyhow::bail!("Proxmox API request failed: {}", resp.status())
+            let status = resp.status();
+            let err_text = resp.text().await.unwrap_or_default();
+            tracing::error!("❌ Proxmox API request failed: {} - URL: {} - Response: {}", status, url, err_text);
+            anyhow::bail!("Proxmox API request failed: {}", status)
         }
+    }
+
+    /// Get the first node name from the Proxmox cluster
+    pub async fn get_node_name(&self) -> anyhow::Result<String> {
+        let url = format!("{}/api2/json/nodes", self.api_url);
+        let resp = self.client.get(&url).send().await?;
+        
+        if !resp.status().is_success() {
+            anyhow::bail!("Failed to query Proxmox nodes: {}", resp.status());
+        }
+        
+        let data: Value = resp.json().await?;
+        let nodes = data["data"].as_array()
+            .ok_or_else(|| anyhow::anyhow!("No nodes in Proxmox response"))?;
+        
+        if let Some(first_node) = nodes.first() {
+            if let Some(node_name) = first_node["node"].as_str() {
+                return Ok(node_name.to_string());
+            }
+        }
+        
+        anyhow::bail!("No nodes found in Proxmox cluster")
     }
 }
 

@@ -48,8 +48,6 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 const safeVmId = encodeURIComponent(vmId);
                 const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${safeVmId}${params.toString() ? `?${params.toString()}` : '' }`;
 
-                console.log("[VNC] Connecting to:", wsUrl.replace(/ticket=[^&]+/, 'ticket=***').replace(/token=[^&]+/, 'token=***'));
-
                 // Dynamically import RFB to avoid CommonJS issues
                 const { default: RFB } = await import('@novnc/novnc/lib/rfb');
 
@@ -89,7 +87,6 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 // Event handlers
                 rfb.addEventListener("connect", () => {
                     if (!cancelled) {
-                        console.log("[VNC] ✅ Connected");
                         updateStatus("Connected");
                         toast.success("VNC connected");
                     }
@@ -97,7 +94,6 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
 
                 rfb.addEventListener("disconnect", (e: any) => {
                     if (!cancelled) {
-                        console.log("[VNC] Disconnected:", e.detail);
                         updateStatus("Disconnected");
                         if (!e.detail?.clean) {
                             toast.error("VNC connection lost");
@@ -114,13 +110,12 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 });
 
                 rfb.addEventListener("desktopname", (e: any) => {
-                    console.log("[VNC] Desktop:", e.detail.name);
+                    // Desktop name received
                 });
 
                 rfbRef.current = rfb;
 
             } catch (err) {
-                console.error("[VNC] Error:", err);
                 if (!cancelled) {
                     updateStatus("Connection failed");
                     toast.error("Failed to connect to VNC");

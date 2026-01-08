@@ -72,7 +72,6 @@ export function RealtimeMetrics() {
         // Add token to WebSocket URL for authentication
         const token = localStorage.getItem("access_token");
         const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/metrics${selectedNode !== "all" ? `?node_id=${selectedNode}` : ''}${token ? `${selectedNode !== "all" ? '&' : '?'}token=${token}` : ''}`;
-        console.log("[Metrics] Connecting to metrics WebSocket", wsUrl.replace(/token=[^&]+/, 'token=***'));
         const socket = new WebSocket(wsUrl);
 
         socket.onmessage = (event) => {
@@ -123,11 +122,11 @@ export function RealtimeMetrics() {
         };
 
         socket.onerror = (error) => {
-            console.error("[Metrics] WebSocket error:", error);
+            // Silently handle WebSocket errors
         };
 
         socket.onclose = () => {
-            console.log("[Metrics] WebSocket closed");
+            // Silently handle WebSocket close
         };
 
         return () => socket.close();
