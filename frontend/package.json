@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "mkdir -p public/novnc && cp -r node_modules/@novnc/novnc/lib public/novnc/",
     "dev": "next dev",
+    "prebuild": "mkdir -p public/novnc && cp -r node_modules/@novnc/novnc/lib public/novnc/",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

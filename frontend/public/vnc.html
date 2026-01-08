@@ -185,8 +185,8 @@
     </div>
 
     <script type="module">
-        // Import noVNC from CDN
-        import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.6.0/core/rfb.js';
+        // Import noVNC from local files (bundled with Next.js)
+        import RFB from '/novnc/lib/rfb.js';
 
         let rfb = null;
 
