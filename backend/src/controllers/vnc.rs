@@ -195,7 +195,7 @@ pub async fn vnc_handler(
                 tracing::debug!("VNC request for VM: {} -> {}", vm_id, vm_id_path);
 
                 // 4. Get VNC Info (or use provided ticket)
-                let vnc_info = match (query.ticket, query.port) {
+                let vnc_info = match (query.ticket.clone(), query.port) {
                     (Some(ticket), Some(port)) => {
                         // Reconstruct the websocket URL directly if we have everything
                         let ws_host = node.api_url.replace("https://", "wss://").replace("http://", "ws://");
@@ -214,7 +214,7 @@ pub async fn vnc_handler(
 
                         Ok(crate::clients::VncInfo {
                             url: vnc_url,
-                            ticket,
+                            ticket: ticket.clone(),
                             port,
                         })
                     },
@@ -225,7 +225,14 @@ pub async fn vnc_handler(
                     Ok(info) => {
                         tracing::debug!("Proxying VNC to {}", info.url);
                         
-                        if let Err(e) = proxy_vnc(info.url, socket, auth_header).await {
+                        // For Proxmox, pass the ticket as Cookie header
+                        let vnc_auth_header = if node.node_type == crate::models::node::NodeType::Proxmox {
+                            Some(format!("PVEAuthCookie={}", info.ticket))
+                        } else {
+                            auth_header
+                        };
+                        
+                        if let Err(e) = proxy_vnc(info.url, socket, vnc_auth_header).await {
                             tracing::error!("VNC Proxy error: {}", e);
                         }
                     }
