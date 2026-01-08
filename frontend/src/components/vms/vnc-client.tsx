@@ -68,29 +68,39 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                     wsProtocols: ["binary", "base64"],
                     credentials: { password: ticket || "" },
                     focusOnClick: true,
-                    // @ts-ignore - Some versions support this in options
-                    keyboardTarget: canvasRef.current,
+                    viewOnly: false,
                 });
-
-                // Extra safety: set it explicitly as a property
-                // @ts-ignore
-                rfb.keyboardTarget = canvasRef.current;
 
                 rfb.scaleViewport = true;
                 rfb.resizeSession = true;
+
+                console.log("[VNCClient] RFB properties:", {
+                    scaleViewport: rfb.scaleViewport,
+                    resizeSession: rfb.resizeSession,
+                    viewOnly: rfb.viewOnly,
+                });
                 console.log("[VNCClient] RFB instance created, setting up event listeners...");
 
                 rfb.addEventListener("connect", () => {
-                    console.log("[VNCClient] Connected event received");
+                    console.log("[VNCClient] ✅ Connected event received");
                     if (!cancelled) {
                         setIsConnecting(false);
                         updateStatus("Connected");
                         toast.success("Console connected");
+
+                        // Check if canvas was actually created
+                        const canvas = canvasRef.current?.querySelector('canvas');
+                        console.log("[VNCClient] Canvas element:", canvas);
+                        if (canvas) {
+                            console.log("[VNCClient] Canvas dimensions:", canvas.width, "x", canvas.height);
+                        } else {
+                            console.error("[VNCClient] ❌ No canvas element found!");
+                        }
                     }
                 });
 
                 rfb.addEventListener("disconnect", (e: any) => {
-                    console.log("[VNCClient] Disconnect event:", e.detail);
+                    console.log("[VNCClient] ❌ Disconnect event:", e.detail);
                     if (!cancelled) {
                         updateStatus("Disconnected");
                         if (e.detail?.clean) {
@@ -102,11 +112,19 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 });
 
                 rfb.addEventListener("securityfailure", (e: any) => {
-                    console.error("[VNCClient] Security failure:", e.detail);
+                    console.error("[VNCClient] 🔒 Security failure:", e.detail);
                     if (!cancelled) {
                         updateStatus("Security Error");
                         toast.error("VNC authentication failed");
                     }
+                });
+
+                rfb.addEventListener("desktopname", (e: any) => {
+                    console.log("[VNCClient] 🖥️ Desktop name:", e.detail.name);
+                });
+
+                rfb.addEventListener("capabilities", (e: any) => {
+                    console.log("[VNCClient] 🔧 Capabilities:", e.detail.capabilities);
                 });
 
                 rfbRef.current = rfb;
@@ -134,6 +152,22 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
             }
         };
     }, [nodeId, vmId, updateStatus]);
+
+    // Ensure canvas styling after RFB creates it
+    useEffect(() => {
+        const checkCanvas = setInterval(() => {
+            const canvas = canvasRef.current?.querySelector('canvas');
+            if (canvas) {
+                console.log("[VNCClient] 🎨 Applying canvas styles");
+                (canvas as HTMLCanvasElement).style.width = '100%';
+                (canvas as HTMLCanvasElement).style.height = '100%';
+                (canvas as HTMLCanvasElement).style.display = 'block';
+                clearInterval(checkCanvas);
+            }
+        }, 100);
+
+        return () => clearInterval(checkCanvas);
+    }, []);
 
     // Expose sendCtrlAltDel method
     useEffect(() => {
@@ -227,10 +261,13 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                     setHasFocus(false);
                 }}
                 className={cn(
-                    "w-full h-full bg-neutral-900 outline-none transition-all duration-300 cursor-crosshair",
+                    "w-full h-full outline-none transition-all duration-300",
                     "ring-inset focus:ring-[6px] focus:ring-primary/40"
                 )}
-                style={{ minHeight: "600px" }}
+                style={{
+                    minHeight: "600px",
+                    position: "relative",
+                }}
             />
         </div>
     );
