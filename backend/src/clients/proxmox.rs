@@ -224,6 +224,9 @@ impl NodeClient for ProxmoxClient {
 
         let data: Value = resp.json().await?;
         
+        // Log the full response for debugging
+        tracing::debug!("📋 VNC proxy response: {}", serde_json::to_string_pretty(&data).unwrap_or_default());
+        
         let ticket = data["data"]["ticket"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("No ticket in VNC proxy response"))?;
@@ -233,6 +236,9 @@ impl NodeClient for ProxmoxClient {
             .or_else(|| data["data"]["port"].as_str().and_then(|s| s.parse().ok()))
             .ok_or_else(|| anyhow::anyhow!("No port in VNC proxy response"))?;
 
+        tracing::debug!("🎫 VNC ticket: {} (length: {})", ticket, ticket.len());
+        tracing::debug!("🔌 VNC port: {}", port);
+
         // Reconstruct the websocket URL
         let ws_host = self.api_url
             .replace("https://", "wss://")
@@ -240,10 +246,13 @@ impl NodeClient for ProxmoxClient {
             .trim_end_matches('/')
             .to_string();
         
+        let encoded_ticket = urlencoding::encode(ticket);
         let vnc_url = format!(
             "{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
-            ws_host, node, vm_type, vmid, port, urlencoding::encode(ticket)
+            ws_host, node, vm_type, vmid, port, encoded_ticket
         );
+        
+        tracing::debug!("🔗 Full VNC WebSocket URL: {}", vnc_url);
         
         Ok(super::VncInfo {
             url: vnc_url,
