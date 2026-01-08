@@ -138,11 +138,32 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
         }
     }, []);
 
+    // Focus handling for keyboard events
+    useEffect(() => {
+        if (!isConnecting && rfbRef.current) {
+            console.log("[VNCClient] Connection established, requesting focus");
+            // Give the browser a moment to settle before focusing
+            const timer = setTimeout(() => {
+                const container = canvasRef.current;
+                if (container) {
+                    container.focus();
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [isConnecting]);
+
+    const handleCanvasClick = () => {
+        if (canvasRef.current) {
+            canvasRef.current.focus();
+        }
+    };
+
     return (
-        <div className="w-full h-full relative bg-card">
+        <div className="w-full h-full relative bg-card" onClick={handleCanvasClick}>
             {isConnecting && (
-                <div className="absolute inset-0 flex items-center justify-center bg-card/95 backdrop-blur-sm z-10">
-                    <div className="flex flex-col items-center gap-4 p-8 glass-surface rounded-2xl">
+                <div className="absolute inset-0 flex items-center justify-center bg-card/95 backdrop-blur-sm z-10 pointer-events-none">
+                    <div className="flex flex-col items-center gap-4 p-8 glass-surface rounded-2xl pointer-events-auto">
                         <div className="relative">
                             <div className="w-12 h-12 border-3 border-primary/20 rounded-full" />
                             <div className="absolute inset-0 w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin" />
@@ -156,7 +177,8 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
             )}
             <div
                 ref={canvasRef}
-                className="w-full h-full bg-neutral-900"
+                tabIndex={0}
+                className="w-full h-full bg-neutral-900 outline-none focus:ring-1 focus:ring-primary/20"
                 style={{ minHeight: "400px" }}
             />
         </div>

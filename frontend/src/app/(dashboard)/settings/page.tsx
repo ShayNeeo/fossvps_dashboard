@@ -114,7 +114,7 @@ export default function SettingsPage() {
                                 exit={{ opacity: 0, x: -20 }}
                                 className="space-y-6"
                             >
-                                <Card className="glass-surface border-white/5">
+                                <Card className="glass-surface border-black/5 dark:border-white/5">
                                     <CardHeader>
                                         <CardTitle>Profile Information</CardTitle>
                                         <CardDescription>Update your personal details and how others see you.</CardDescription>
@@ -127,7 +127,7 @@ export default function SettingsPage() {
                                                     id="username"
                                                     value={profile.username}
                                                     onChange={(e) => setProfile({ ...profile, username: e.target.value })}
-                                                    className="glass-surface border-white/10"
+                                                    className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -137,7 +137,7 @@ export default function SettingsPage() {
                                                     type="email"
                                                     value={profile.email}
                                                     onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                                                    className="glass-surface border-white/10"
+                                                    className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                                                 />
                                             </div>
                                         </div>
@@ -155,7 +155,7 @@ export default function SettingsPage() {
                                     </CardContent>
                                 </Card>
 
-                                <Card className="glass-surface border-white/5">
+                                <Card className="glass-surface border-black/5 dark:border-white/5">
                                     <CardHeader>
                                         <CardTitle>Authentication</CardTitle>
                                         <CardDescription>Manage your security credentials and API access.</CardDescription>
@@ -167,7 +167,7 @@ export default function SettingsPage() {
                                                     <p className="font-semibold">Two-Factor Authentication</p>
                                                     <p className="text-sm text-muted-foreground">Add an extra layer of security to your account.</p>
                                                 </div>
-                                                <Button variant="outline" onClick={handleToggle2FA} className="glass-surface border-white/10 btn-premium">Enable</Button>
+                                                <Button variant="outline" onClick={handleToggle2FA} className="glass-surface border-black/10 dark:border-white/10 btn-premium">Enable</Button>
                                             </div>
                                             <Separator className="bg-white/5" />
                                             <div className="flex justify-between items-center">
@@ -175,13 +175,13 @@ export default function SettingsPage() {
                                                     <p className="font-semibold">API Tokens</p>
                                                     <p className="text-sm text-muted-foreground">Generate tokens for automated infrastructure access.</p>
                                                 </div>
-                                                <Button variant="outline" className="glass-surface border-white/10 btn-premium">Manage</Button>
+                                                <Button variant="outline" className="glass-surface border-black/10 dark:border-white/10 btn-premium">Manage</Button>
                                             </div>
                                         </div>
                                     </CardContent>
                                 </Card>
 
-                                <Card className="glass-surface border-white/5 border-destructive/20 bg-destructive/5">
+                                <Card className="glass-surface border-black/5 dark:border-white/5 border-destructive/20 bg-destructive/5">
                                     <CardHeader>
                                         <CardTitle className="text-destructive">Danger Zone</CardTitle>
                                         <CardDescription>Irreversible actions for your account and infrastructure.</CardDescription>

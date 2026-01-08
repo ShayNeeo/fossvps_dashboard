@@ -95,7 +95,7 @@ export function NodeDialog({ node, open, onOpenChange }: NodeDialogProps) {
                             id="edit-name"
                             value={config.name}
                             onChange={(e) => setConfig({ ...config, name: e.target.value })}
-                            className="glass-surface border-white/10 bg-white/5"
+                            className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                         />
                     </div>
                     <div className="space-y-2">
@@ -104,7 +104,7 @@ export function NodeDialog({ node, open, onOpenChange }: NodeDialogProps) {
                             id="edit-url"
                             value={config.api_url}
                             onChange={(e) => setConfig({ ...config, api_url: e.target.value })}
-                            className="glass-surface border-white/10 bg-white/5"
+                            className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -114,7 +114,7 @@ export function NodeDialog({ node, open, onOpenChange }: NodeDialogProps) {
                                 id="edit-key"
                                 value={config.api_key}
                                 onChange={(e) => setConfig({ ...config, api_key: e.target.value })}
-                                className="glass-surface border-white/10 bg-white/5"
+                                className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                             />
                         </div>
                         <div className="space-y-2">
@@ -125,7 +125,7 @@ export function NodeDialog({ node, open, onOpenChange }: NodeDialogProps) {
                                 placeholder="Leave blank to keep current"
                                 value={config.api_secret}
                                 onChange={(e) => setConfig({ ...config, api_secret: e.target.value })}
-                                className="glass-surface border-white/10 bg-white/5"
+                                className="glass-surface border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5"
                             />
                         </div>
                     </div>
@@ -142,7 +142,7 @@ export function NodeDialog({ node, open, onOpenChange }: NodeDialogProps) {
                         </p>
                         <Button
                             variant="destructive"
-                            className="w-full glass-surface border-destructive/20 hover:bg-destructive/20 transition-all font-bold"
+                            className="w-full bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20 font-bold h-11"
                             onClick={() => {
                                 if (confirm("Are you sure you want to delete this node?")) {
                                     deleteMutation.mutate();
