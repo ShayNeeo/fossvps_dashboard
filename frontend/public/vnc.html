@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             background: #0a0a0a;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -19,7 +20,7 @@
             display: flex;
             flex-direction: column;
         }
-        
+
         #header {
             background: linear-gradient(to right, #1a1a1a, #2a2a2a);
             padding: 12px 20px;
@@ -27,9 +28,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
         }
-        
+
         #header h1 {
             color: #fff;
             font-size: 16px;
@@ -38,17 +39,17 @@
             align-items: center;
             gap: 10px;
         }
-        
+
         #status {
             display: flex;
             align-items: center;
             gap: 8px;
             padding: 6px 12px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 6px;
             font-size: 12px;
         }
-        
+
         .status-dot {
             width: 8px;
             height: 8px;
@@ -56,33 +57,40 @@
             background: #fbbf24;
             animation: pulse 2s ease-in-out infinite;
         }
-        
+
         .status-dot.connected {
             background: #10b981;
         }
-        
+
         .status-dot.disconnected {
             background: #ef4444;
             animation: none;
         }
-        
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
-        
+
         #status-text {
             color: #aaa;
         }
-        
+
         #controls {
             display: flex;
             gap: 8px;
         }
-        
+
         button {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             color: #fff;
             padding: 6px 12px;
             border-radius: 6px;
@@ -90,16 +98,16 @@
             font-size: 12px;
             transition: all 0.2s;
         }
-        
+
         button:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
         }
-        
+
         button:active {
             transform: scale(0.95);
         }
-        
+
         #screen {
             flex: 1;
             display: flex;
@@ -108,7 +116,7 @@
             background: #000;
             position: relative;
         }
-        
+
         #loading {
             position: absolute;
             top: 50%;
@@ -117,21 +125,23 @@
             text-align: center;
             color: #666;
         }
-        
+
         .spinner {
             width: 40px;
             height: 40px;
-            border: 3px solid rgba(255,255,255,0.1);
+            border: 3px solid rgba(255, 255, 255, 0.1);
             border-top-color: #3b82f6;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 16px;
         }
-        
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
-        
+
         #footer {
             background: #1a1a1a;
             padding: 8px 20px;
@@ -143,6 +153,7 @@
         }
     </style>
 </head>
+
 <body>
     <div id="header">
         <div>
@@ -160,14 +171,14 @@
             <button onclick="toggleFullscreen()">Fullscreen</button>
         </div>
     </div>
-    
+
     <div id="screen">
         <div id="loading">
             <div class="spinner"></div>
             <div>Connecting to VNC server...</div>
         </div>
     </div>
-    
+
     <div id="footer">
         <span>Protocol: VNC/RFB | Encryption: WSS/TLS</span>
         <span>Powered by noVNC</span>
@@ -176,17 +187,27 @@
     <script type="module">
         // Import noVNC from CDN
         import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.6.0/core/rfb.js';
-        
+
         let rfb = null;
-        
+
         // Parse URL parameters
         const params = new URLSearchParams(window.location.search);
-        const wsUrl = params.get('url');
-        const vmId = params.get('vmId') || 'Unknown VM';
-        
+        const nodeId = params.get('nodeId');
+        const vmId = params.get('vmId');
+        const ticket = params.get('ticket');
+        const port = params.get('port');
+        const wsBase = params.get('wsBase') || 'wss://api.dashboard.w9.nu';
+
         // Update VM name
-        document.getElementById('vm-name').textContent = `VNC Console - ${vmId}`;
-        
+        document.getElementById('vm-name').textContent = `VNC Console - ${vmId || 'Unknown VM'}`;
+
+        // Construct WebSocket URL
+        const wsUrl = ticket && port
+            ? `${wsBase}/api/v1/vms/console/${nodeId}/${vmId}?ticket=${encodeURIComponent(ticket)}&port=${port}`
+            : null;
+
+        console.log('🔌 VNC Parameters:', { nodeId, vmId, hasTicket: !!ticket, port, wsBase });
+
         // Update status
         function setStatus(text, state = 'connecting') {
             const statusText = document.getElementById('status-text');
@@ -194,22 +215,22 @@
             statusText.textContent = text;
             statusDot.className = `status-dot ${state}`;
         }
-        
+
         // Initialize VNC
         function connect() {
             if (!wsUrl) {
-                setStatus('Missing WebSocket URL', 'disconnected');
-                document.getElementById('loading').innerHTML = '<div style="color:#ef4444">Error: No WebSocket URL provided</div>';
+                setStatus('Missing connection parameters', 'disconnected');
+                document.getElementById('loading').innerHTML = '<div style="color:#ef4444">Error: Missing required parameters (nodeId, vmId, ticket, port)</div>';
                 return;
             }
-            
+
             const screenDiv = document.getElementById('screen');
-            
+
             try {
                 rfb = new RFB(screenDiv, wsUrl, {
                     wsProtocols: ['binary', 'base64']
                 });
-                
+
                 // Configure scaling
                 rfb.scaleViewport = true;
                 rfb.resizeSession = false;
@@ -219,14 +240,14 @@
                 rfb.compressionLevel = 2;
                 rfb.viewOnly = false;
                 rfb.focusOnClick = true;
-                
+
                 // Event handlers
                 rfb.addEventListener('connect', () => {
                     setStatus('Connected', 'connected');
                     document.getElementById('loading').style.display = 'none';
                     console.log('✅ VNC Connected');
                 });
-                
+
                 rfb.addEventListener('disconnect', (e) => {
                     setStatus('Disconnected', 'disconnected');
                     if (e.detail.clean) {
@@ -235,46 +256,46 @@
                         console.error('❌ VNC Connection lost:', e.detail);
                     }
                 });
-                
+
                 rfb.addEventListener('securityfailure', (e) => {
                     setStatus('Authentication failed', 'disconnected');
                     console.error('🔒 Security failure:', e.detail);
                 });
-                
+
                 rfb.addEventListener('desktopname', (e) => {
                     document.getElementById('vm-name').textContent = `VNC Console - ${e.detail.name}`;
                     console.log('🖥️ Desktop name:', e.detail.name);
                 });
-                
-                console.log('🔌 Connecting to:', wsUrl);
-                
+
+                console.log('🔌 Connecting to VNC...');
+
             } catch (err) {
                 setStatus('Connection failed', 'disconnected');
                 console.error('❌ VNC Error:', err);
                 document.getElementById('loading').innerHTML = `<div style="color:#ef4444">Error: ${err.message}</div>`;
             }
         }
-        
+
         // Send Ctrl+Alt+Del
-        window.sendCtrlAltDel = function() {
+        window.sendCtrlAltDel = function () {
             if (rfb) {
                 rfb.sendCtrlAltDel();
                 console.log('⌨️ Sent Ctrl+Alt+Del');
             }
         };
-        
+
         // Toggle fullscreen
-        window.toggleFullscreen = function() {
+        window.toggleFullscreen = function () {
             if (document.fullscreenElement) {
                 document.exitFullscreen();
             } else {
                 document.documentElement.requestFullscreen();
             }
         };
-        
+
         // Connect on load
         connect();
-        
+
         // Handle window resize
         window.addEventListener('resize', () => {
             if (rfb && rfb.scaleViewport) {
@@ -285,4 +306,5 @@
         });
     </script>
 </body>
+
 </html>

@@ -211,9 +211,15 @@ export default function ConsolePage({ params }: PageProps) {
                                 </div>
                                 <Button
                                     onClick={() => {
-                                        const wsBaseUrl = process.env.NEXT_PUBLIC_WS_URL || "wss://api.dashboard.w9.nu";
-                                        const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${parsedParams.nodeId}/${parsedParams.vmId}?ticket=${encodeURIComponent(ticket)}${port ? `&port=${port}` : ''}`;
-                                        const vncUrl = `/vnc.html?url=${encodeURIComponent(wsUrl)}&vmId=${encodeURIComponent(parsedParams.vmId)}`;
+                                        // Pass parameters separately to avoid double-encoding
+                                        const params = new URLSearchParams({
+                                            nodeId: parsedParams.nodeId,
+                                            vmId: parsedParams.vmId,
+                                            ticket: ticket,
+                                            port: port?.toString() || '',
+                                            wsBase: process.env.NEXT_PUBLIC_WS_URL || "wss://api.dashboard.w9.nu"
+                                        });
+                                        const vncUrl = `/vnc.html?${params.toString()}`;
                                         window.open(vncUrl, '_blank', 'width=1280,height=800');
                                         toast.success('VNC console opened in new window');
                                     }}

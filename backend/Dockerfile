@@ -1,20 +1,7 @@
-FROM rust:1-bookworm AS builder
+# Production Dockerfile - pulls pre-built image from GHCR
+# For building from source, use Dockerfile.build
 
-WORKDIR /app
-COPY . .
-
-# Build for release
-RUN cargo build --release
-
-# Final runner stage
-FROM debian:bookworm-slim
-
-WORKDIR /app
-
-# Install SSL certs for reqwest and other network operations
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-
-COPY --from=builder /app/target/release/backend /usr/local/bin/backend
+FROM ghcr.io/shayneeo/fossvps_dashboard-backend:latest
 
 EXPOSE 3001
 
