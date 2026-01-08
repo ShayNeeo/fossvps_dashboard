@@ -75,22 +75,54 @@ pub async fn proxy_vnc(
     let (backend_ws, response) = match tokio::time::timeout(Duration::from_secs(15), connect_future).await {
         Ok(Ok(ws)) => ws,
         Ok(Err(e)) => {
-            let error_msg = format!("{}", e);
-            
-            // Provide specific error messages based on HTTP status codes
-            if error_msg.contains("401") {
-                error!("VNC authentication failed (401). API token may lack VM.Console permission");
-                return Err(anyhow::anyhow!("VNC authentication failed. Ensure API token has VM.Console permission"));
-            } else if error_msg.contains("403") {
-                error!("VNC access forbidden (403). Insufficient permissions");
-                return Err(anyhow::anyhow!("VNC access forbidden. Check VM permissions"));
-            } else if error_msg.contains("404") {
-                error!("VNC endpoint not found (404). VM may not exist or node is incorrect");
-                return Err(anyhow::anyhow!("VM or VNC endpoint not found"));
+            // Try to extract HTTP response details when handshake fails at HTTP layer
+            match e {
+                tokio_tungstenite::tungstenite::Error::Http(resp) => {
+                    let status = resp.status();
+                    let headers = resp.headers().clone();
+
+                    // Try to extract and mask vncticket from the URL for safer debug logging
+                    let masked_ticket = if let Some(idx) = target_url.find("vncticket=") {
+                        let start = idx + "vncticket=".len();
+                        let rest = &target_url[start..];
+                        let ticket = rest.split('&').next().unwrap_or(rest);
+                        if ticket.len() <= 12 { ticket.to_string() } else { format!("{}...{}", &ticket[..6], &ticket[ticket.len()-6..]) }
+                    } else { "<no-ticket>".to_string() };
+
+                    error!("VNC handshake HTTP failure: status={} headers={:?} target={} ticket={}", status, headers, target_url, masked_ticket);
+
+                    if status.as_u16() == 401 {
+                        error!("VNC authentication failed (401). API token may lack VM.Console permission");
+                        return Err(anyhow::anyhow!("VNC authentication failed. Ensure API token has VM.Console permission"));
+                    } else if status.as_u16() == 403 {
+                        error!("VNC access forbidden (403). Insufficient permissions");
+                        return Err(anyhow::anyhow!("VNC access forbidden. Check VM permissions"));
+                    } else if status.as_u16() == 404 {
+                        error!("VNC endpoint not found (404). VM may not exist or node is incorrect");
+                        return Err(anyhow::anyhow!("VM or VNC endpoint not found"));
+                    } else {
+                        return Err(anyhow::anyhow!("VNC handshake failed with HTTP status {}", status));
+                    }
+                }
+                other => {
+                    let error_msg = format!("{}", other);
+
+                    // Fallback to old substring checks for non-HTTP errors
+                    if error_msg.contains("401") {
+                        error!("VNC authentication failed (401). API token may lack VM.Console permission");
+                        return Err(anyhow::anyhow!("VNC authentication failed. Ensure API token has VM.Console permission"));
+                    } else if error_msg.contains("403") {
+                        error!("VNC access forbidden (403). Insufficient permissions");
+                        return Err(anyhow::anyhow!("VNC access forbidden. Check VM permissions"));
+                    } else if error_msg.contains("404") {
+                        error!("VNC endpoint not found (404). VM may not exist or node is incorrect");
+                        return Err(anyhow::anyhow!("VM or VNC endpoint not found"));
+                    }
+
+                    error!("VNC connection error: {}", other);
+                    return Err(anyhow::anyhow!("Failed to establish VNC connection: {}", other));
+                }
             }
-            
-            error!("VNC connection error: {}", e);
-            return Err(anyhow::anyhow!("Failed to establish VNC connection: {}", e));
         }
         Err(_) => {
             error!("VNC backend connection timeout after 15 seconds");
