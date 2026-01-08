@@ -1,9 +1,12 @@
 use axum::{
     extract::{ws::WebSocketUpgrade, Path, State},
     response::{Response, IntoResponse},
+    http::{StatusCode, header},
 };
 use crate::db::DbPool;
 use crate::services::vnc::proxy_vnc;
+use jsonwebtoken::{decode, DecodingKey, Validation};
+use crate::controllers::auth::Claims;
 
 use axum::extract::Query;
 use serde::Serialize;
@@ -18,6 +21,7 @@ pub struct VncTicketResponse {
 pub struct VncQuery {
     pub ticket: Option<String>,
     pub port: Option<u64>,
+    pub token: Option<String>,  // JWT token for auth
 }
 
 pub async fn get_vnc_ticket_handler(
@@ -67,8 +71,41 @@ pub async fn vnc_handler(
     Path((node_id, vm_id)): Path<(String, String)>,
     State(pool): State<DbPool>,
     Query(query): Query<VncQuery>,
+    headers: axum::http::HeaderMap,
 ) -> Response {
-    tracing::info!("🖥️ VNC console request - node_id: {}, vm_id: {}", node_id, vm_id);
+    tracing::info!("🖥️ VNC console request - node_id: {}, vm_id: {}, has_ticket: {}", 
+        node_id, vm_id, query.ticket.is_some());
+    
+    // Authenticate: check JWT token from query param or Authorization header
+    let token = query.token.as_deref().or_else(|| {
+        headers.get(header::AUTHORIZATION)
+            .and_then(|h| h.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer "))
+    });
+
+    let token = match token {
+        Some(t) => t,
+        None => {
+            tracing::warn!("❌ VNC request without authentication");
+            return (StatusCode::UNAUTHORIZED, "Authentication required").into_response();
+        }
+    };
+
+    // Verify JWT
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "placeholder_secret".to_string());
+    match decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(secret.as_ref()),
+        &Validation::default(),
+    ) {
+        Ok(_) => {
+            tracing::debug!("✅ VNC request authenticated");
+        }
+        Err(e) => {
+            tracing::warn!("❌ VNC authentication failed: {}", e);
+            return (StatusCode::UNAUTHORIZED, "Invalid token").into_response();
+        }
+    }
     
     ws.on_upgrade(move |socket| async move {
         let node_uuid = match uuid::Uuid::parse_str(&node_id) {

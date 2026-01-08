@@ -32,17 +32,29 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
             try {
                 if (cancelled || !containerRef.current) return;
 
+                // Get JWT token from localStorage
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.error("[VNC] No authentication token found");
+                    updateStatus("Authentication required");
+                    return;
+                }
+
                 // Build WebSocket URL
                 const wsBaseUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001";
-                const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${vmId}${ticket ? `?ticket=${encodeURIComponent(ticket)}` : ''}${port ? `&port=${port}` : ''}`;
+                const params = new URLSearchParams();
+                if (ticket) params.append('ticket', ticket);
+                if (port) params.append('port', port.toString());
+                params.append('token', token);  // Add JWT token
+                
+                const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${vmId}?${params.toString()}`;
 
-                console.log("[VNC] Connecting to:", wsUrl.replace(/ticket=[^&]+/, 'ticket=***'));
+                console.log("[VNC] Connecting to:", wsUrl.replace(/ticket=[^&]+/, 'ticket=***').replace(/token=[^&]+/, 'token=***'));
 
                 // Create RFB instance
                 rfb = new RFB(containerRef.current, wsUrl, {
-                    wsProtocols: ['binary'],
                     shared: true,
-                    credentials: { password: ticket || "" },
+                    credentials: { password: "" },
                 });
 
                 // Configure for best experience and input capture
@@ -55,9 +67,22 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 rfb.clipViewport = false;
                 rfb.dragViewport = false;
                 
-                // Critical for input handling
+                // Critical for input handling - enable full keyboard control
                 rfb.viewOnly = false;  // Allow interaction
                 rfb.focusOnClick = true;  // Auto-focus on click
+                
+                // Get the canvas and configure keyboard capture
+                setTimeout(() => {
+                    const canvas = containerRef.current?.querySelector('canvas');
+                    if (canvas) {
+                        canvas.setAttribute('tabindex', '0');
+                        canvas.focus();
+                        // Add click handler to ensure focus
+                        canvas.addEventListener('click', () => {
+                            canvas.focus();
+                        });
+                    }
+                }, 100);
 
                 // Event handlers
                 rfb.addEventListener("connect", () => {
@@ -126,7 +151,13 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
     }, []);
 
     return (
-        <div className="relative w-full h-full bg-black">
+        <div className="relative w-full h-full bg-black" onClick={(e) => {
+            // Ensure focus is on the canvas when clicking anywhere in the VNC container
+            const canvas = containerRef.current?.querySelector('canvas');
+            if (canvas) {
+                (canvas as HTMLCanvasElement).focus();
+            }
+        }}>
             {/* Status indicator */}
             <div className="absolute top-4 right-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-md bg-black/50 backdrop-blur-sm border border-white/10">
                 <div className={`w-2 h-2 rounded-full ${status === "Connected" ? "bg-green-500" :
@@ -139,16 +170,14 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
             {/* VNC container - noVNC will inject canvas here */}
             <div
                 ref={containerRef}
-                className="w-full h-full"
+                className="w-full h-full focus-within:ring-2 focus-within:ring-primary/50"
                 style={{ minHeight: "600px" }}
             />
 
             {/* Click to focus hint */}
             {status === "Connected" && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <div className="px-4 py-2 rounded-lg bg-black/70 backdrop-blur-sm border border-white/20 text-white text-sm font-medium">
-                        Click inside to interact
-                    </div>
+                <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm border border-white/20 text-white text-xs font-medium animate-pulse">
+                    💡 Click inside to capture keyboard • Press Ctrl+Alt to release
                 </div>
             )}
         </div>

@@ -55,6 +55,11 @@ pub async fn auth_middleware(
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     .ok_or(StatusCode::UNAUTHORIZED)?;
 
+    // Only allow admin users
+    if user.role != UserRole::Admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
     // Create AuthUser and insert into request extensions
     let auth_user = AuthUser {
         id: user.id,
