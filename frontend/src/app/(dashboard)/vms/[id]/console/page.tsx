@@ -47,12 +47,13 @@ export default function ConsolePage({ params }: PageProps) {
                 return;
             }
 
-            // Keep raw (encoded) form for safe path usage; decode only the VM part
-            const rawId = resolvedParams.id;
+            // Decode the entire ID first (handles double-encoding from URL routing)
+            const decodedId = decodeURIComponent(resolvedParams.id);
+            console.log("[Console] Decoded ID:", decodedId);
 
-            const idParts = rawId.split(":");
+            const idParts = decodedId.split(":");
             if (idParts.length !== 2) {
-                setError(`Invalid VM identifier format. Expected: node_id:vm_id, got: ${rawId}`);
+                setError(`Invalid VM identifier format. Expected: node_id:vm_id, got: ${decodedId}`);
                 return;
             }
 

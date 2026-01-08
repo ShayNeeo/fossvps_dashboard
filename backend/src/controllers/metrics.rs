@@ -31,14 +31,27 @@ pub async fn metrics_handler(
     headers: axum::http::HeaderMap,
     State(pool): State<crate::db::DbPool>,
 ) -> impl IntoResponse {
-    // Authenticate via token query param or Authorization header
-    let token = query.token.as_deref().or_else(|| {
+    // Authenticate via token query param, Authorization header, or cookie
+    let mut token_opt = query.token.as_deref().map(|s| s.to_string()).or_else(|| {
         headers.get(header::AUTHORIZATION)
             .and_then(|h| h.to_str().ok())
             .and_then(|h| h.strip_prefix("Bearer "))
+            .map(|s| s.to_string())
     });
 
-    let token = match token {
+    // Fallback to cookie if no token in query/header
+    if token_opt.is_none() {
+        if let Some(cookie_header) = headers.get(header::COOKIE).and_then(|h| h.to_str().ok()) {
+            for part in cookie_header.split(';').map(|s| s.trim()) {
+                if part.starts_with("access_token=") {
+                    token_opt = Some(part["access_token=".len()..].to_string());
+                    break;
+                }
+            }
+        }
+    }
+
+    let token = match token_opt.as_deref() {
         Some(t) => t,
         None => return (StatusCode::UNAUTHORIZED, "Authentication required").into_response(),
     };
