@@ -62,18 +62,31 @@ pub async fn handle_login(
     .fetch_optional(&pool)
     .await
     .map_err(|e| {
-        tracing::error!("Database error during login: {}", e);
+        tracing::error!("Database error during login for {}: {}", payload.username, e);
         StatusCode::INTERNAL_SERVER_ERROR
-    })?
-    .ok_or(StatusCode::UNAUTHORIZED)?;
+    })?;
+
+    let user = match user {
+        Some(u) => u,
+        None => {
+            tracing::info!("Login failed: user not found: {}", payload.username);
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
 
     // Verify password
-    let parsed_hash = PasswordHash::new(&user.password_hash)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let parsed_hash = match PasswordHash::new(&user.password_hash) {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::error!("Failed to parse password hash for {}: {}", user.username, e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
     
-    Argon2::default()
-        .verify_password(payload.password.as_bytes(), &parsed_hash)
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+    if let Err(_) = Argon2::default().verify_password(payload.password.as_bytes(), &parsed_hash) {
+        tracing::info!("Login failed: invalid password for {}", payload.username);
+        return Err(StatusCode::UNAUTHORIZED);
+    }
 
     // Generate tokens
     let access_token = generate_token(user.username.clone(), 60) // 1 hour
@@ -81,6 +94,8 @@ pub async fn handle_login(
     let refresh_token = generate_token(user.username.clone(), 24 * 60) // 24 hours
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
+    tracing::info!("Login successful for {}", user.username);
+
     Ok(Json(AuthResponse {
         access_token,
         refresh_token,
@@ -177,6 +192,27 @@ pub async fn handle_logout() -> Result<StatusCode, StatusCode> {
     // In a stateless JWT system, logout is handled client-side by deleting tokens
     // For production, consider implementing a token blacklist or refresh token revocation
     Ok(StatusCode::OK)
+}
+
+#[derive(serde::Serialize)]
+pub struct AdminExistsResponse {
+    pub exists: bool,
+}
+
+pub async fn handle_admin_exists(
+    State(pool): State<DbPool>,
+) -> Result<Json<AdminExistsResponse>, StatusCode> {
+    let admin = sqlx::query_scalar::<_, String>(
+        "SELECT username FROM users WHERE role = 'admin' LIMIT 1"
+    )
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error checking admin user: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(AdminExistsResponse { exists: admin.is_some() }))
 }
 
 fn generate_token(user: String, minutes: i64) -> anyhow::Result<String> {
