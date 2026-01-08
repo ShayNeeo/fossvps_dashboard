@@ -161,7 +161,7 @@ export default function VMsPage() {
 
                                         <div className="flex gap-2">
                                             <Button asChild variant="secondary" size="sm" className="flex-1 glass-surface btn-premium border-white/5 text-xs font-bold transition-all hover:glow-primary">
-                                                <Link href={`/vms/${vm.node_id}:${vm.internal_id.replace(/\//g, '-')}/console`}>
+                                                <Link href={`/vms/${vm.node_id}:${encodeURIComponent(vm.internal_id)}/console`}>
                                                     <Terminal className="w-3.5 h-3.5 mr-1.5" />
                                                     Terminal
                                                 </Link>

@@ -31,9 +31,7 @@ export default function LoginPage() {
         try {
             const response = await authService.login(username, password);
             
-            // Store tokens
-            localStorage.setItem("access_token", response.access_token);
-            localStorage.setItem("refresh_token", response.refresh_token);
+            // Server sets HttpOnly cookies for tokens; store minimal user info for UI
             localStorage.setItem("user", JSON.stringify(response.user));
 
             toast.success("Login successful!");

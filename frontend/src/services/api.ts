@@ -3,9 +3,10 @@ import axios from "axios";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 const api = axios.create({
     baseURL: apiBaseUrl.endsWith("/") ? apiBaseUrl : `${apiBaseUrl}/`,
+    withCredentials: true, // include HttpOnly cookies set by the server
 });
 
-// Add auth interceptor
+// Add auth interceptor: keep Authorization header when local token present (legacy)
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("access_token");
@@ -17,7 +18,7 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Add response interceptor for token refresh
+// Add response interceptor for token refresh using cookie-based refresh
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -27,20 +28,18 @@ api.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                const refresh_token = localStorage.getItem("refresh_token");
-                if (!refresh_token) {
-                    throw new Error("No refresh token");
+                // Use refresh cookie (server will read it) to get new tokens
+                const { data } = await axios.post(`${apiBaseUrl}/auth/refresh`, {}, { withCredentials: true });
+
+                // Update cached user if returned
+                if (data?.user) {
+                    localStorage.setItem("user", JSON.stringify(data.user));
                 }
 
-                const { data } = await axios.post(`${apiBaseUrl}/auth/refresh`, {
-                    refresh_token,
-                });
+                if (data?.access_token) {
+                    originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+                }
 
-                localStorage.setItem("access_token", data.access_token);
-                localStorage.setItem("refresh_token", data.refresh_token);
-                localStorage.setItem("user", JSON.stringify(data.user));
-
-                originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
                 return api(originalRequest);
             } catch (refreshError) {
                 // Refresh failed, redirect to login
@@ -120,9 +119,8 @@ export const vmService = {
         return data;
     },
     getVncTicket: async (node_id: string, vm_id: string) => {
-        // vm_id here is already the path format from the internal_id, but the route expects URL safe
-        // However, the internal_id often contains / which we might need to escape or convert
-        const safeVmId = vm_id.replace(/\//g, '-');
+        // vm_id may contain slashes; encode to keep it path-safe
+        const safeVmId = encodeURIComponent(vm_id);
         const { data } = await api.get<{ ticket: string, port: number }>(`vms/console/${node_id}/${safeVmId}/ticket`);
         return data;
     },

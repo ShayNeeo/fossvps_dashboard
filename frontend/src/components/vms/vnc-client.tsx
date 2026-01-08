@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 interface VNCClientProps {
     nodeId: string;
-    vmId: string;
+    vmId: string; // decoded path (e.g., pve/qemu/100)
     ticket?: string;
     port?: number;
     onStatusChange?: (status: string) => void;
@@ -15,14 +15,20 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
     const containerRef = useRef<HTMLDivElement>(null);
     const rfbRef = useRef<any>(null);
     const [status, setStatus] = useState<string>("Connecting...");
+    const [mounted, setMounted] = useState(false);
 
     const updateStatus = useCallback((newStatus: string) => {
         setStatus(newStatus);
         onStatusChange?.(newStatus);
     }, [onStatusChange]);
 
+    // Ensure component is mounted (client-side) before accessing localStorage
     useEffect(() => {
-        if (!containerRef.current) return;
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!containerRef.current || !mounted) return;
 
         let rfb: any = null;
         let cancelled = false;
@@ -31,23 +37,16 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
             try {
                 if (cancelled || !containerRef.current) return;
 
-                // Get JWT token from localStorage
-                const token = localStorage.getItem('access_token');
-                if (!token) {
-                    console.error("[VNC] No authentication token found");
-                    updateStatus("Authentication required");
-                    toast.error("Please log in again");
-                    return;
-                }
-
-                // Build WebSocket URL
+                // Using HttpOnly cookies when available; also append access_token as query for cross-site WSS
                 const wsBaseUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001";
                 const params = new URLSearchParams();
                 if (ticket) params.append('ticket', ticket);
                 if (port) params.append('port', port.toString());
-                params.append('token', token);  // Add JWT token
-                
-                const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${vmId}?${params.toString()}`;
+                const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+                if (token) params.append('token', token);
+
+                const safeVmId = encodeURIComponent(vmId);
+                const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${safeVmId}${params.toString() ? `?${params.toString()}` : '' }`;
 
                 console.log("[VNC] Connecting to:", wsUrl.replace(/ticket=[^&]+/, 'ticket=***').replace(/token=[^&]+/, 'token=***'));
 
@@ -142,7 +141,7 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                 rfbRef.current = null;
             }
         };
-    }, [nodeId, vmId, ticket, port, updateStatus]);
+    }, [nodeId, vmId, ticket, port, updateStatus, mounted]);
 
     // Expose sendCtrlAltDel for parent component
     useEffect(() => {

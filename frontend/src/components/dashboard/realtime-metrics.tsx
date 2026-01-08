@@ -32,12 +32,16 @@ export function RealtimeMetrics() {
         queryFn: nodeService.list,
     });
 
+    // Ensure component is mounted before accessing localStorage
     useEffect(() => {
         setMounted(true);
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
+    }, []);
 
-        const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/metrics?token=${encodeURIComponent(token)}${selectedNode !== "all" ? `&node_id=${selectedNode}` : ''}`;
+    useEffect(() => {
+        if (!mounted) return;
+
+        const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/v1/metrics${selectedNode !== "all" ? `?node_id=${selectedNode}` : ''}`;
+        console.log("[Metrics] Connecting to metrics WebSocket", wsUrl);
         const socket = new WebSocket(wsUrl);
 
         socket.onmessage = (event) => {
@@ -51,8 +55,16 @@ export function RealtimeMetrics() {
             });
         };
 
+        socket.onerror = (error) => {
+            console.error("[Metrics] WebSocket error:", error);
+        };
+
+        socket.onclose = () => {
+            console.log("[Metrics] WebSocket closed");
+        };
+
         return () => socket.close();
-    }, [selectedNode]);
+    }, [selectedNode, mounted]);
 
     if (!mounted) {
         return <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[200px]" />;

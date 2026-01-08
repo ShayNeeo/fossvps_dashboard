@@ -15,10 +15,24 @@ export interface LoginResponse {
 
 export const authService = {
     login: async (username: string, password: string): Promise<LoginResponse> => {
+        // Send credentials and let server set HttpOnly cookies for tokens
         const { data } = await axios.post<LoginResponse>(`${apiBaseUrl}/auth/login`, {
             username,
             password,
-        });
+        }, { withCredentials: true });
+        // Persist tokens for WebSocket auth (cookies are HttpOnly)
+        localStorage.setItem("access_token", data.access_token);
+        localStorage.setItem("refresh_token", data.refresh_token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        return data;
+    },
+
+    refresh: async (): Promise<LoginResponse> => {
+        // Let server use refresh cookie to issue new tokens
+        const { data } = await axios.post<LoginResponse>(`${apiBaseUrl}/auth/refresh`, {}, { withCredentials: true });
+        localStorage.setItem("access_token", data.access_token);
+        localStorage.setItem("refresh_token", data.refresh_token);
+        localStorage.setItem("user", JSON.stringify(data.user));
         return data;
     },
 
@@ -32,37 +46,18 @@ export const authService = {
     },
 
     logout: async () => {
-        const token = localStorage.getItem("access_token");
-        if (token) {
-            try {
-                await axios.post(`${apiBaseUrl}/auth/logout`, {}, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-            } catch (error) {
-                console.error("Logout error:", error);
-            }
+        try {
+            // Let server clear cookies
+            await axios.post(`${apiBaseUrl}/auth/logout`, {}, { withCredentials: true });
+        } catch (error) {
+            console.error("Logout error:", error);
         }
+        localStorage.removeItem("user");
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
-        localStorage.removeItem("user");
     },
 
-    refresh: async (): Promise<LoginResponse> => {
-        const refresh_token = localStorage.getItem("refresh_token");
-        if (!refresh_token) {
-            throw new Error("No refresh token");
-        }
 
-        const { data } = await axios.post<LoginResponse>(`${apiBaseUrl}/auth/refresh`, {
-            refresh_token,
-        });
-        
-        localStorage.setItem("access_token", data.access_token);
-        localStorage.setItem("refresh_token", data.refresh_token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        
-        return data;
-    },
 
     getUser: () => {
         const userStr = localStorage.getItem("user");

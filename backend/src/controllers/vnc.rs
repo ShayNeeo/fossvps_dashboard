@@ -7,6 +7,7 @@ use crate::db::DbPool;
 use crate::services::vnc::proxy_vnc;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use crate::controllers::auth::Claims;
+use crate::models::user::User;
 
 use axum::extract::Query;
 use serde::Serialize;
@@ -56,7 +57,10 @@ pub async fn get_vnc_ticket_handler(
         )),
     };
 
-    let vm_id_path = vm_id.replace("-", "/");
+    let vm_id_path = match urlencoding::decode(&vm_id) {
+        Ok(decoded) => decoded.into_owned(),
+        Err(_) => vm_id.replace("-", "/"),
+    };
     match client.get_vnc_info(&vm_id_path).await {
         Ok(info) => axum::Json(VncTicketResponse {
             ticket: info.ticket,
@@ -76,14 +80,26 @@ pub async fn vnc_handler(
     tracing::info!("🖥️ VNC console request - node_id: {}, vm_id: {}, has_ticket: {}", 
         node_id, vm_id, query.ticket.is_some());
     
-    // Authenticate: check JWT token from query param or Authorization header
-    let token = query.token.as_deref().or_else(|| {
+    // Authenticate: check JWT token from query param, Authorization header or cookie
+    let mut token_opt = query.token.as_deref().map(|s| s.to_string()).or_else(|| {
         headers.get(header::AUTHORIZATION)
             .and_then(|h| h.to_str().ok())
             .and_then(|h| h.strip_prefix("Bearer "))
+            .map(|s| s.to_string())
     });
 
-    let token = match token {
+    if token_opt.is_none() {
+        if let Some(cookie_header) = headers.get(header::COOKIE).and_then(|h| h.to_str().ok()) {
+            for part in cookie_header.split(';').map(|s| s.trim()) {
+                if part.starts_with("access_token=") {
+                    token_opt = Some(part["access_token=".len()..].to_string());
+                    break;
+                }
+            }
+        }
+    }
+
+    let token = match token_opt.as_deref() {
         Some(t) => t,
         None => {
             tracing::warn!("❌ VNC request without authentication");
@@ -93,18 +109,41 @@ pub async fn vnc_handler(
 
     // Verify JWT
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "placeholder_secret".to_string());
-    match decode::<Claims>(
+    let token_data = match decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
     ) {
-        Ok(_) => {
+        Ok(data) => {
             tracing::debug!("✅ VNC request authenticated");
+            data
         }
         Err(e) => {
             tracing::warn!("❌ VNC authentication failed: {}", e);
             return (StatusCode::UNAUTHORIZED, "Invalid token").into_response();
         }
+    };
+
+    // Verify user still exists (mirrors HTTP middleware behavior)
+    if let Err(e) = sqlx::query_as::<_, User>(
+        "SELECT id, username, email, password_hash, role, created_at FROM users WHERE username = $1"
+    )
+    .bind(&token_data.claims.sub)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|err| {
+        tracing::error!("Database error during VNC auth lookup: {}", err);
+        err
+    })
+    .and_then(|user_opt| {
+        user_opt.ok_or_else(|| {
+            tracing::warn!("❌ VNC auth user not found: {}", token_data.claims.sub);
+            sqlx::Error::RowNotFound
+        })
+    })
+    {
+        let _ = e;
+        return (StatusCode::UNAUTHORIZED, "User not found").into_response();
     }
     
     ws.on_upgrade(move |socket| async move {
@@ -148,8 +187,11 @@ pub async fn vnc_handler(
                     )),
                 };
 
-                // 3. Convert vm_id from URL-safe format (px-lxc-100) to path format (px/lxc/100)
-                let vm_id_path = vm_id.replace("-", "/");
+                // 3. Decode vm_id (percent-encoded) into path format
+                let vm_id_path = match urlencoding::decode(&vm_id) {
+                    Ok(decoded) => decoded.into_owned(),
+                    Err(_) => vm_id.clone(),
+                };
                 tracing::debug!("VNC request for VM: {} -> {}", vm_id, vm_id_path);
 
                 // 4. Get VNC Info (or use provided ticket)

@@ -47,13 +47,12 @@ export default function ConsolePage({ params }: PageProps) {
                 return;
             }
 
-            // Decode the URL-encoded ID
-            const decodedId = decodeURIComponent(resolvedParams.id);
-            console.log("[Console] Decoded ID:", decodedId);
+            // Keep raw (encoded) form for safe path usage; decode only the VM part
+            const rawId = resolvedParams.id;
 
-            const idParts = decodedId.split(":");
+            const idParts = rawId.split(":");
             if (idParts.length !== 2) {
-                setError(`Invalid VM identifier format. Expected: node_id:vm_id, got: ${decodedId}`);
+                setError(`Invalid VM identifier format. Expected: node_id:vm_id, got: ${rawId}`);
                 return;
             }
 
@@ -63,13 +62,13 @@ export default function ConsolePage({ params }: PageProps) {
                 return;
             }
 
-            console.log("[Console] Parsed - NodeId:", nodeId, "VmId:", vmIdEncoded);
-            setParsedParams({ nodeId, vmId: vmIdEncoded });
+            const vmIdPath = decodeURIComponent(vmIdEncoded);
+            console.log("[Console] Parsed - NodeId:", nodeId, "VmId (path):", vmIdPath);
+            setParsedParams({ nodeId, vmId: vmIdPath });
 
             // Fetch VNC ticket
             try {
                 setIsFetchingTicket(true);
-                const vmIdPath = vmIdEncoded.replace(/-/g, "/");
                 const vncInfo = await vmService.getVncTicket(nodeId, vmIdPath);
                 console.log("[Console] Got VNC ticket info - Ticket:", !!vncInfo.ticket, "Port:", vncInfo.port);
                 setTicket(vncInfo.ticket);

@@ -2,6 +2,7 @@ use axum::{
     Json,
     http::StatusCode,
     extract::State,
+    response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
 use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation};
@@ -53,7 +54,7 @@ pub struct Claims {
 pub async fn handle_login(
     State(pool): State<DbPool>,
     Json(payload): Json<LoginRequest>,
-) -> Result<Json<AuthResponse>, StatusCode> {
+) -> Result<(axum::http::HeaderMap, Json<AuthResponse>), StatusCode> {
     // Fetch user from database
     let user = sqlx::query_as::<_, User>(
         "SELECT id, username, email, password_hash, role, created_at FROM users WHERE username = $1"
@@ -96,22 +97,29 @@ pub async fn handle_login(
     
     tracing::info!("Login successful for {}", user.username);
 
-    Ok(Json(AuthResponse {
-        access_token,
-        refresh_token,
+    let mut headers = axum::http::HeaderMap::new();
+    for cookie in build_auth_cookies(&access_token, &refresh_token) {
+        headers.append(axum::http::header::SET_COOKIE, cookie);
+    }
+
+    let resp = AuthResponse {
+        access_token: access_token.clone(),
+        refresh_token: refresh_token.clone(),
         user: UserInfo {
             id: user.id.to_string(),
             username: user.username,
             email: user.email,
             role: user.role,
         },
-    }))
+    };
+
+    Ok((headers, Json(resp)))
 }
 
 pub async fn handle_refresh(
     State(pool): State<DbPool>,
     Json(payload): Json<RefreshRequest>,
-) -> Result<Json<AuthResponse>, StatusCode> {
+) -> Result<(axum::http::HeaderMap, Json<AuthResponse>), StatusCode> {
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "placeholder_secret".to_string());
     
     // Decode and verify refresh token
@@ -136,17 +144,23 @@ pub async fn handle_refresh(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let new_refresh_token = generate_token(user.username.clone(), 24 * 60)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut headers = axum::http::HeaderMap::new();
+    for cookie in build_auth_cookies(&new_access_token, &new_refresh_token) {
+        headers.append(axum::http::header::SET_COOKIE, cookie);
+    }
 
-    Ok(Json(AuthResponse {
-        access_token: new_access_token,
-        refresh_token: new_refresh_token,
+    let resp = AuthResponse {
+        access_token: new_access_token.clone(),
+        refresh_token: new_refresh_token.clone(),
         user: UserInfo {
             id: user.id.to_string(),
             username: user.username,
             email: user.email,
             role: user.role,
         },
-    }))
+    };
+
+    Ok((headers, Json(resp)))
 }
 
 pub async fn handle_register(
@@ -188,10 +202,13 @@ pub async fn handle_register(
     }))
 }
 
-pub async fn handle_logout() -> Result<StatusCode, StatusCode> {
-    // In a stateless JWT system, logout is handled client-side by deleting tokens
-    // For production, consider implementing a token blacklist or refresh token revocation
-    Ok(StatusCode::OK)
+pub async fn handle_logout() -> Result<impl IntoResponse, StatusCode> {
+    let mut headers = axum::http::HeaderMap::new();
+    for cookie in clear_auth_cookies() {
+        headers.append(axum::http::header::SET_COOKIE, cookie);
+    }
+
+    Ok((headers, StatusCode::OK))
 }
 
 #[derive(serde::Serialize)]
@@ -237,4 +254,46 @@ fn generate_token(user: String, minutes: i64) -> anyhow::Result<String> {
     )?;
 
     Ok(token)
+}
+
+fn cookie_settings() -> (bool, String, Option<String>) {
+    let secure_cookie = std::env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".into()) == "true";
+    let same_site = std::env::var("COOKIE_SAMESITE").unwrap_or_else(|_| "None".into());
+    let domain = std::env::var("COOKIE_DOMAIN").ok();
+    (secure_cookie, same_site, domain)
+}
+
+fn build_cookie(name: &str, value: &str, max_age: i64) -> axum::http::HeaderValue {
+    let (secure_cookie, same_site, domain) = cookie_settings();
+    let mut parts = Vec::new();
+    parts.push(format!("{}={}", name, value));
+    parts.push("HttpOnly".into());
+    if secure_cookie {
+        parts.push("Secure".into());
+    }
+    parts.push(format!("SameSite={}", same_site));
+    parts.push("Path=/".into());
+    parts.push(format!("Max-Age={}", max_age));
+    if let Some(d) = domain {
+        parts.push(format!("Domain={}", d));
+    }
+
+    let cookie_str = parts.join("; ");
+    axum::http::HeaderValue::from_str(&cookie_str).unwrap()
+}
+
+fn build_auth_cookies(access: &str, refresh: &str) -> [axum::http::HeaderValue; 2] {
+    let access_max_age = 60 * 60; // 1 hour
+    let refresh_max_age = 24 * 60 * 60; // 24 hours
+    [
+        build_cookie("access_token", access, access_max_age),
+        build_cookie("refresh_token", refresh, refresh_max_age),
+    ]
+}
+
+fn clear_auth_cookies() -> [axum::http::HeaderValue; 2] {
+    [
+        build_cookie("access_token", "", 0),
+        build_cookie("refresh_token", "", 0),
+    ]
 }

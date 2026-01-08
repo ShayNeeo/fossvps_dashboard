@@ -27,20 +27,32 @@ pub async fn auth_middleware(
     mut req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    let auth_header = req
+    // Try Authorization header first
+    let mut token_opt: Option<String> = req
         .headers()
         .get(header::AUTHORIZATION)
-        .and_then(|h| h.to_str().ok());
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .map(|s| s.to_string());
 
-    let token = match auth_header {
-        Some(header) if header.starts_with("Bearer ") => &header[7..],
-        _ => return Err(StatusCode::UNAUTHORIZED),
-    };
+    // If not present, try access_token cookie
+    if token_opt.is_none() {
+        if let Some(cookie_header) = req.headers().get(header::COOKIE).and_then(|h| h.to_str().ok()) {
+            for part in cookie_header.split(';').map(|s| s.trim()) {
+                if part.starts_with("access_token=") {
+                    token_opt = Some(part["access_token=".len()..].to_string());
+                    break;
+                }
+            }
+        }
+    }
+
+    let token = token_opt.ok_or(StatusCode::UNAUTHORIZED)?;
 
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "placeholder_secret".to_string());
     
     let token_data = decode::<Claims>(
-        token,
+        &token,
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
     ).map_err(|_| StatusCode::UNAUTHORIZED)?;
