@@ -1,6 +1,6 @@
 use axum::{
     extract::{ws::WebSocketUpgrade, Path, State},
-    response::Response,
+    response::{Response, IntoResponse},
 };
 use crate::db::DbPool;
 use crate::services::vnc::proxy_vnc;
@@ -100,12 +100,12 @@ pub async fn vnc_handler(
                 // 2. Initialize NodeClient
                 let client: Box<dyn crate::clients::NodeClient + Send + Sync> = match node.node_type {
                     crate::models::node::NodeType::Proxmox => Box::new(crate::clients::proxmox::ProxmoxClient::new(
-                        node.api_url,
+                        node.api_url.clone(),
                         node.api_key.clone(),
                         node.api_secret.clone().unwrap_or_default(),
                     )),
                     crate::models::node::NodeType::Incus => Box::new(crate::clients::incus::IncusClient::new(
-                        node.api_url,
+                        node.api_url.clone(),
                         node.api_key.clone(),
                         node.api_secret.clone(),
                     )),
