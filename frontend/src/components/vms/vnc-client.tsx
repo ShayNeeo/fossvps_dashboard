@@ -71,12 +71,27 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                     viewOnly: false,
                 });
 
+                // Scaling configuration
+                // scaleViewport: scales the remote screen to fit the container
+                // resizeSession: disabled because Proxmox blocks it ("administratively prohibited")
+                // clipViewport: false to allow scaling instead of clipping
+                // dragViewport: false since we're scaling to fit
                 rfb.scaleViewport = true;
-                rfb.resizeSession = true;
+                rfb.resizeSession = false;
+                rfb.clipViewport = false;
+                rfb.dragViewport = false;
 
-                console.log("[VNCClient] RFB properties:", {
+                // Quality: 0-9, where 9 is best quality (0 is best compression)
+                // Use high quality for local/fast connections
+                rfb.qualityLevel = 9;
+                rfb.compressionLevel = 2; // 0-9, lower = less compression, better quality
+
+                console.log("[VNCClient] RFB configuration:", {
                     scaleViewport: rfb.scaleViewport,
                     resizeSession: rfb.resizeSession,
+                    clipViewport: rfb.clipViewport,
+                    qualityLevel: rfb.qualityLevel,
+                    compressionLevel: rfb.compressionLevel,
                     viewOnly: rfb.viewOnly,
                 });
                 console.log("[VNCClient] RFB instance created, setting up event listeners...");
@@ -85,6 +100,7 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                     console.log("[VNCClient] ✅ Connected event received");
                     if (!cancelled) {
                         setIsConnecting(false);
+                        setIsReady(true); // Mark as ready for keyboard input
                         updateStatus("Connected");
                         toast.success("Console connected");
 
@@ -169,6 +185,33 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
         return () => clearInterval(checkCanvas);
     }, []);
 
+    // Handle container resize for proper scaling
+    useEffect(() => {
+        if (!canvasRef.current || !rfbRef.current) return;
+
+        const resizeObserver = new ResizeObserver(() => {
+            if (rfbRef.current) {
+                // Trigger a viewport scale update when container is resized
+                // This ensures the remote screen scales properly
+                try {
+                    // Force a redraw by toggling and restoring scaleViewport
+                    const currentScale = rfbRef.current.scaleViewport;
+                    rfbRef.current.scaleViewport = !currentScale;
+                    rfbRef.current.scaleViewport = currentScale;
+                    console.log("[VNCClient] 📐 Container resized, viewport updated");
+                } catch (e) {
+                    console.warn("[VNCClient] Could not update viewport on resize:", e);
+                }
+            }
+        });
+
+        resizeObserver.observe(canvasRef.current);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, []);
+
     // Expose sendCtrlAltDel method
     useEffect(() => {
         // @ts-ignore - expose method for parent component
@@ -180,27 +223,56 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
     }, []);
 
     const [hasFocus, setHasFocus] = useState(false);
+    const [isReady, setIsReady] = useState(false);
 
     // Enhanced focus management to grab the VNC session
+    // Only manage focus when VNC is actually connected and ready
     useEffect(() => {
-        if (hasFocus && rfbRef.current) {
+        if (!isReady || !rfbRef.current) return;
+
+        if (hasFocus) {
             // Explicitly tell noVNC to grab keyboard focus
             try {
                 rfbRef.current.focus();
-                console.log("[VNCClient] Called rfb.focus() - keyboard should now work");
+                console.log("[VNCClient] ✅ Keyboard focus enabled");
             } catch (e) {
                 console.warn("[VNCClient] Could not call rfb.focus():", e);
             }
-        } else if (!hasFocus && rfbRef.current) {
+        } else {
             // Release keyboard focus when container is blurred
             try {
                 rfbRef.current.blur();
-                console.log("[VNCClient] Called rfb.blur() - keyboard released");
+                console.log("[VNCClient] ⌨️ Keyboard focus released");
             } catch (e) {
                 console.warn("[VNCClient] Could not call rfb.blur():", e);
             }
         }
-    }, [hasFocus]);
+    }, [hasFocus, isReady]);
+
+    // Prevent keyboard events from bubbling to broken Next.js code
+    // This fixes the "TypeError: l.isWindows is not a function" errors
+    useEffect(() => {
+        if (!isReady) return;
+
+        const handleKeyEvent = (e: KeyboardEvent) => {
+            // Only intercept if we're focused
+            if (hasFocus && canvasRef.current?.contains(e.target as Node)) {
+                // Stop the event from bubbling to Next.js code that has broken platform detection
+                e.stopPropagation();
+            }
+        };
+
+        // Capture keyboard events before they bubble
+        window.addEventListener('keydown', handleKeyEvent, true);
+        window.addEventListener('keyup', handleKeyEvent, true);
+        window.addEventListener('keypress', handleKeyEvent, true);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyEvent, true);
+            window.removeEventListener('keyup', handleKeyEvent, true);
+            window.removeEventListener('keypress', handleKeyEvent, true);
+        };
+    }, [hasFocus, isReady]);
 
     const handleContainerClick = () => {
         // Ensure the container gets focus when clicked
