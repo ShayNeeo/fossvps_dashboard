@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Maximize2, RefreshCw, Terminal, Keyboard, ArrowLeft, Monitor } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { vmService } from "@/services/api";
 
 // Dynamically import the VNC client with SSR disabled
 // This prevents the "exports is not defined" error from noVNC
@@ -33,35 +34,59 @@ export default function ConsolePage({ params }: PageProps) {
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const [parsedParams, setParsedParams] = useState<{ nodeId: string; vmId: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [ticket, setTicket] = useState<string | null>(null);
+    const [port, setPort] = useState<number | null>(null);
+    const [isFetchingTicket, setIsFetchingTicket] = useState(false);
 
-    // Parse the params on mount
+    // Parse the params and fetch ticket on mount
     useEffect(() => {
-        console.log("[Console] Parsing params:", resolvedParams);
+        const init = async () => {
+            console.log("[Console] Parsing params:", resolvedParams);
 
-        if (!resolvedParams || !resolvedParams.id) {
-            setError("Missing VM identifier");
-            return;
+            if (!resolvedParams || !resolvedParams.id) {
+                setError("Missing VM identifier");
+                return;
+            }
+
+            // Decode the URL-encoded ID
+            const decodedId = decodeURIComponent(resolvedParams.id);
+            console.log("[Console] Decoded ID:", decodedId);
+
+            const idParts = decodedId.split(":");
+            if (idParts.length !== 2) {
+                setError(`Invalid VM identifier format. Expected: node_id:vm_id, got: ${decodedId}`);
+                return;
+            }
+
+            const [nodeId, vmIdEncoded] = idParts;
+            if (!nodeId || !vmIdEncoded) {
+                setError("Incomplete VM identifier");
+                return;
+            }
+
+            console.log("[Console] Parsed - NodeId:", nodeId, "VmId:", vmIdEncoded);
+            setParsedParams({ nodeId, vmId: vmIdEncoded });
+
+            // Fetch VNC ticket
+            try {
+                setIsFetchingTicket(true);
+                const vmIdPath = vmIdEncoded.replace(/-/g, "/");
+                const vncInfo = await vmService.getVncTicket(nodeId, vmIdPath);
+                console.log("[Console] Got VNC ticket info - Ticket:", !!vncInfo.ticket, "Port:", vncInfo.port);
+                setTicket(vncInfo.ticket);
+                setPort(vncInfo.port);
+            } catch (err: any) {
+                console.error("[Console] Failed to fetch VNC ticket:", err);
+                setError("Failed to obtain security ticket for VNC session");
+            } finally {
+                setIsFetchingTicket(false);
+            }
+        };
+
+        if (resolvedParams) {
+            init();
         }
-
-        // Decode the URL-encoded ID
-        const decodedId = decodeURIComponent(resolvedParams.id);
-        console.log("[Console] Decoded ID:", decodedId);
-
-        const idParts = decodedId.split(":");
-        if (idParts.length !== 2) {
-            setError(`Invalid VM identifier format. Expected: node_id:vm_id, got: ${decodedId}`);
-            return;
-        }
-
-        const [nodeId, vmIdEncoded] = idParts;
-        if (!nodeId || !vmIdEncoded) {
-            setError("Incomplete VM identifier");
-            return;
-        }
-
-        console.log("[Console] Parsed - NodeId:", nodeId, "VmId:", vmIdEncoded);
-        setParsedParams({ nodeId, vmId: vmIdEncoded });
-    }, [resolvedParams]);
+    }, [resolvedParams, resolvedParams?.id]);
 
     const handleStatusChange = useCallback((newStatus: string) => {
         console.log("[Console] Status changed:", newStatus);
@@ -133,8 +158,8 @@ export default function ConsolePage({ params }: PageProps) {
                         </h1>
                         <div className="flex items-center gap-2 mt-0.5">
                             <span className={`w-2 h-2 rounded-full ${status === "Connected" ? "bg-success shadow-[0_0_8px_hsl(var(--success))]" :
-                                    status === "Disconnected" || status.includes("Error") ? "bg-destructive shadow-[0_0_8px_hsl(var(--destructive))]" :
-                                        "bg-amber-500 animate-pulse shadow-[0_0_8px_theme(colors.amber.500)]"
+                                status === "Disconnected" || status.includes("Error") ? "bg-destructive shadow-[0_0_8px_hsl(var(--destructive))]" :
+                                    "bg-amber-500 animate-pulse shadow-[0_0_8px_theme(colors.amber.500)]"
                                 }`} />
                             <span className="text-xs text-muted-foreground">{status}</span>
                         </div>
@@ -179,17 +204,26 @@ export default function ConsolePage({ params }: PageProps) {
                 className="flex-1 flex items-center justify-center p-4 md:p-6 bg-muted/30"
             >
                 <div className="w-full h-full max-w-[1920px] max-h-[1080px] rounded-xl overflow-hidden shadow-2xl border border-border bg-card">
-                    {parsedParams ? (
+                    {isFetchingTicket ? (
+                        <div className="w-full h-full flex items-center justify-center bg-card">
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                <span className="text-sm text-muted-foreground">Fetching security ticket...</span>
+                            </div>
+                        </div>
+                    ) : parsedParams && ticket ? (
                         <VNCClient
                             nodeId={parsedParams.nodeId}
                             vmId={parsedParams.vmId}
+                            ticket={ticket}
+                            port={port || undefined}
                             onStatusChange={handleStatusChange}
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-card">
                             <div className="flex flex-col items-center gap-4">
-                                <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                <span className="text-sm text-muted-foreground">Initializing console...</span>
+                                <Monitor className="w-10 h-10 text-muted-foreground/30" />
+                                <span className="text-sm text-muted-foreground">Ready to connect</span>
                             </div>
                         </div>
                     )}

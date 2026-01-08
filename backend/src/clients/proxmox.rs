@@ -173,7 +173,7 @@ impl NodeClient for ProxmoxClient {
         }
     }
 
-    async fn get_vnc_url(&self, vm_id: &str) -> anyhow::Result<String> {
+    async fn get_vnc_info(&self, vm_id: &str) -> anyhow::Result<super::VncInfo> {
         tracing::info!("🖥️ Getting VNC URL for VM: {}", vm_id);
         
         let parts: Vec<&str> = vm_id.split('/').collect();
@@ -226,7 +226,11 @@ impl NodeClient for ProxmoxClient {
         
         tracing::info!("🔌 VNC WebSocket URL: {}", vnc_url);
         
-        Ok(vnc_url)
+        Ok(super::VncInfo {
+            url: vnc_url,
+            ticket: ticket.to_string(),
+            port,
+        })
     }
 }
 

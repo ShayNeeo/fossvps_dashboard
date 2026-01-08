@@ -120,9 +120,13 @@ impl NodeClient for IncusClient {
         }
     }
 
-    async fn get_vnc_url(&self, vm_id: &str) -> anyhow::Result<String> {
+    async fn get_vnc_info(&self, vm_id: &str) -> anyhow::Result<super::VncInfo> {
         // Placeholder for Incus VNC/Console
         let ws_host = self.api_url.replace("https://", "wss://").replace("http://", "ws://");
-        Ok(format!("{}/1.0/instances/{}/console?type=vnc", ws_host, vm_id))
+        Ok(super::VncInfo {
+            url: format!("{}/1.0/instances/{}/console?type=vnc", ws_host, vm_id),
+            ticket: "".to_string(),
+            port: 0,
+        })
     }
 }

@@ -7,10 +7,12 @@ import RFB from "@novnc/novnc/lib/rfb";
 interface VNCClientProps {
     nodeId: string;
     vmId: string;
+    ticket?: string;
+    port?: number;
     onStatusChange?: (status: string) => void;
 }
 
-export default function VNCClient({ nodeId, vmId, onStatusChange }: VNCClientProps) {
+export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }: VNCClientProps) {
     const canvasRef = useRef<HTMLDivElement>(null);
     const rfbRef = useRef<any>(null);
     const [isConnecting, setIsConnecting] = useState(true);
@@ -47,17 +49,24 @@ export default function VNCClient({ nodeId, vmId, onStatusChange }: VNCClientPro
                 // Pass vmId as-is (e.g., px-lxc-100)
                 // Backend will convert hyphens to slashes internally
                 const wsBaseUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001";
-                const wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${vmId}`;
+                let wsUrl = `${wsBaseUrl}/api/v1/vms/console/${nodeId}/${vmId}`;
+
+                if (ticket) {
+                    wsUrl += `?ticket=${encodeURIComponent(ticket)}`;
+                    if (port) {
+                        wsUrl += `&port=${port}`;
+                    }
+                }
 
                 console.log("[VNCClient] WebSocket URL:", wsUrl);
-                console.log("[VNCClient] Environment WS URL:", process.env.NEXT_PUBLIC_WS_URL);
+                console.log("[VNCClient] Using ticket:", !!ticket);
 
                 updateStatus("Connecting...");
 
                 console.log("[VNCClient] Creating RFB instance...");
                 rfb = new RFB(canvasRef.current, wsUrl, {
                     wsProtocols: ["binary", "base64"],
-                    credentials: { password: "" },
+                    credentials: { password: ticket || "" },
                 });
 
                 rfb.scaleViewport = true;

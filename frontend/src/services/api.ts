@@ -68,6 +68,13 @@ export const vmService = {
         const { data } = await api.post("vms/media", { node_id, vm_id, iso_path });
         return data;
     },
+    getVncTicket: async (node_id: string, vm_id: string) => {
+        // vm_id here is already the path format from the internal_id, but the route expects URL safe
+        // However, the internal_id often contains / which we might need to escape or convert
+        const safeVmId = vm_id.replace(/\//g, '-');
+        const { data } = await api.get<{ ticket: string, port: number }>(`vms/console/${node_id}/${safeVmId}/ticket`);
+        return data;
+    },
 };
 
 export const supportService = {
