@@ -187,16 +187,17 @@ pub async fn vnc_handler(
 
                 match vnc_info {
                     Ok(info) => {
-                        // Proxmox VNC WebSocket authentication uses ONLY the vncticket query parameter
-                        // The ticket is already embedded in the URL, no additional auth headers needed
-                        tracing::debug!("🔐 Connecting to VNC with ticket in URL (length: {})", info.ticket.len());
+                        // Proxmox VNC WebSocket: ticket authentication via query parameter only
+                        tracing::info!("Initiating VNC connection for VM {}", vm_id_path);
 
                         if let Err(e) = proxy_vnc(info.url, socket, None).await {
-                            tracing::error!("VNC Proxy error: {}", e);
+                            tracing::error!("VNC proxy failed for {}: {}", vm_id_path, e);
+                        } else {
+                            tracing::info!("VNC session completed for {}", vm_id_path);
                         }
                     }
                     Err(e) => {
-                        tracing::error!("Failed to get VNC info: {}", e);
+                        tracing::error!("Failed to obtain VNC ticket for {}: {}", vm_id_path, e);
                     }
                 }
             }

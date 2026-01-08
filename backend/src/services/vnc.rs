@@ -23,22 +23,13 @@ pub async fn proxy_vnc(
     let port_suffix = if is_standard_port { "".to_string() } else { format!(":{}", port_u16.unwrap()) };
     let scheme = if uri.scheme_str() == Some("wss") { "https" } else { "http" };
 
-    debug!("Connecting to VNC at {} with Host: {}{} and Origin: {}://{}{}", 
-        target_url.split("vncticket=").next().unwrap_or(""), 
-        host, port_suffix, scheme, host, port_suffix
-    );
-    
-    // Extract and log the ticket from the URL for debugging
-    if let Some(ticket_part) = target_url.split("vncticket=").nth(1) {
-        let ticket_preview = if ticket_part.len() > 20 {
-            format!("{}...{}", &ticket_part[..10], &ticket_part[ticket_part.len()-10..])
-        } else {
-            ticket_part.to_string()
-        };
-        debug!("🎫 VNC ticket in URL: {} (length: {})", ticket_preview, ticket_part.len());
-    } else {
-        error!("❌ No vncticket found in URL!");
+    // Validate VNC ticket is present in URL
+    if !target_url.contains("vncticket=") {
+        error!("VNC connection attempted without ticket in URL");
+        return Err(anyhow::anyhow!("Missing VNC ticket in URL"));
     }
+    
+    debug!("Establishing VNC WebSocket connection to {}:{}", host, port_u16.unwrap_or(8006));
 
     let mut request = Request::builder()
         .uri(&target_url)
@@ -78,22 +69,33 @@ pub async fn proxy_vnc(
         false,
         connector,
     );
-    let (backend_ws, response) = match tokio::time::timeout(Duration::from_secs(10), connect_future).await {
+    let (backend_ws, response) = match tokio::time::timeout(Duration::from_secs(15), connect_future).await {
         Ok(Ok(ws)) => ws,
         Ok(Err(e)) => {
-            error!("❌ Failed to connect to VNC backend: {}", e);
-            // Log additional details about the error
-            error!("❌ Error details: {:?}", e);
-            return Err(e.into());
+            let error_msg = format!("{}", e);
+            
+            // Provide specific error messages based on HTTP status codes
+            if error_msg.contains("401") {
+                error!("VNC authentication failed (401). API token may lack VM.Console permission");
+                return Err(anyhow::anyhow!("VNC authentication failed. Ensure API token has VM.Console permission"));
+            } else if error_msg.contains("403") {
+                error!("VNC access forbidden (403). Insufficient permissions");
+                return Err(anyhow::anyhow!("VNC access forbidden. Check VM permissions"));
+            } else if error_msg.contains("404") {
+                error!("VNC endpoint not found (404). VM may not exist or node is incorrect");
+                return Err(anyhow::anyhow!("VM or VNC endpoint not found"));
+            }
+            
+            error!("VNC connection error: {}", e);
+            return Err(anyhow::anyhow!("Failed to establish VNC connection: {}", e));
         }
         Err(_) => {
-            error!("❌ VNC backend connection timeout");
-            return Err(anyhow::anyhow!("Connection timeout"));
+            error!("VNC backend connection timeout after 15 seconds");
+            return Err(anyhow::anyhow!("VNC connection timeout - check network and Proxmox availability"));
         }
     };
     
-    debug!("✅ VNC WebSocket connected! Status: {:?}", response.status());
-    debug!("✅ Response headers: {:?}", response.headers());
+    debug!("VNC WebSocket connection established (status: {})", response.status());
 
     let (mut backend_sender, mut backend_receiver) = backend_ws.split();
     let (mut client_sender, mut client_receiver) = client_ws.split();

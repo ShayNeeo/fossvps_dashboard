@@ -224,20 +224,22 @@ impl NodeClient for ProxmoxClient {
 
         let data: Value = resp.json().await?;
         
-        // Log the full response for debugging
-        tracing::debug!("📋 VNC proxy response: {}", serde_json::to_string_pretty(&data).unwrap_or_default());
+        // Extract VNC proxy data with proper error handling
+        let proxy_data = data["data"].as_object()
+            .ok_or_else(|| anyhow::anyhow!("Invalid VNC proxy response structure"))?;
         
-        let ticket = data["data"]["ticket"]
+        let ticket = proxy_data["ticket"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("No ticket in VNC proxy response"))?;
         
-        let port = data["data"]["port"]
+        let port = proxy_data["port"]
             .as_u64()
-            .or_else(|| data["data"]["port"].as_str().and_then(|s| s.parse().ok()))
+            .or_else(|| proxy_data["port"].as_str().and_then(|s| s.parse().ok()))
             .ok_or_else(|| anyhow::anyhow!("No port in VNC proxy response"))?;
+        
+        let user = proxy_data["user"].as_str().unwrap_or("unknown");
 
-        tracing::debug!("🎫 VNC ticket: {} (length: {})", ticket, ticket.len());
-        tracing::debug!("🔌 VNC port: {}", port);
+        tracing::info!("VNC ticket generated for {}:{}/{} (port: {}, user: {})", node, vm_type, vmid, port, user);
 
         // Reconstruct the websocket URL
         let ws_host = self.api_url
@@ -246,15 +248,18 @@ impl NodeClient for ProxmoxClient {
             .trim_end_matches('/')
             .to_string();
         
-        // IMPORTANT: The vncticket MUST be URL-encoded in the query parameter
-        // but will be sent as plain text in the PVEAuthCookie header
+        // URL-encode the ticket for query parameter
+        // Important: Special characters (colons, slashes, etc.) must be encoded
         let encoded_ticket = urlencoding::encode(ticket);
+        
+        // Proxmox VNC WebSocket endpoint format
+        // Authentication is done via the vncticket query parameter only
         let vnc_url = format!(
             "{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
             ws_host, node, vm_type, vmid, port, encoded_ticket
         );
         
-        tracing::debug!("🔗 Full VNC WebSocket URL: {}", vnc_url);
+        tracing::debug!("VNC WebSocket URL constructed for {}:{}/{}", node, vm_type, vmid);
         
         Ok(super::VncInfo {
             url: vnc_url,
