@@ -77,9 +77,6 @@ pub async fn vnc_handler(
     Query(query): Query<VncQuery>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    tracing::info!("🖥️ VNC console request - node_id: {}, vm_id: {}, has_ticket: {}", 
-        node_id, vm_id, query.ticket.is_some());
-    
     // Authenticate: check JWT token from query param, Authorization header or cookie
     let mut token_opt = query.token.as_deref().map(|s| s.to_string()).or_else(|| {
         headers.get(header::AUTHORIZATION)
@@ -114,10 +111,7 @@ pub async fn vnc_handler(
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
     ) {
-        Ok(data) => {
-            tracing::debug!("✅ VNC request authenticated");
-            data
-        }
+        Ok(data) => data,
         Err(e) => {
             tracing::warn!("❌ VNC authentication failed: {}", e);
             return (StatusCode::UNAUTHORIZED, "Invalid token").into_response();
@@ -192,7 +186,6 @@ pub async fn vnc_handler(
                     Ok(decoded) => decoded.into_owned(),
                     Err(_) => vm_id.clone(),
                 };
-                tracing::debug!("VNC request for VM: {} -> {}", vm_id, vm_id_path);
 
                 // 4. Get VNC Info (or use provided ticket)
                 let vnc_info = match (query.ticket.clone(), query.port) {
@@ -224,8 +217,6 @@ pub async fn vnc_handler(
 
                 match vnc_info {
                     Ok(info) => {
-                        tracing::debug!("Proxying VNC to {}", info.url);
-                        
                         // Proxmox requires the ticket as Cookie header for WebSocket handshake
                         // The query parameter alone is not sufficient
                         let vnc_auth_header = if node.node_type == crate::models::node::NodeType::Proxmox {

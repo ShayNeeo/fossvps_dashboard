@@ -69,10 +69,7 @@ pub async fn handle_login(
 
     let user = match user {
         Some(u) => u,
-        None => {
-            tracing::info!("Login failed: user not found: {}", payload.username);
-            return Err(StatusCode::UNAUTHORIZED);
-        }
+        None => return Err(StatusCode::UNAUTHORIZED),
     };
 
     // Verify password
@@ -85,7 +82,6 @@ pub async fn handle_login(
     };
     
     if let Err(_) = Argon2::default().verify_password(payload.password.as_bytes(), &parsed_hash) {
-        tracing::info!("Login failed: invalid password for {}", payload.username);
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -95,8 +91,6 @@ pub async fn handle_login(
     let refresh_token = generate_token(user.username.clone(), 24 * 60) // 24 hours
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
-    tracing::info!("Login successful for {}", user.username);
-
     let mut headers = axum::http::HeaderMap::new();
     for cookie in build_auth_cookies(&access_token, &refresh_token) {
         headers.append(axum::http::header::SET_COOKIE, cookie);

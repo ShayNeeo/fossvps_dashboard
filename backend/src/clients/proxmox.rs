@@ -93,34 +93,20 @@ impl NodeClient for ProxmoxClient {
         
         if resp.status().is_success() {
             let data: Value = resp.json().await?;
-            tracing::debug!("Proxmox API raw response: {}", serde_json::to_string_pretty(&data).unwrap_or_default());
             
             let all_resources = data["data"].as_array().cloned().unwrap_or_default();
-            tracing::info!("📊 Total resources from Proxmox: {}", all_resources.len());
-            
-            // Log resource types for debugging
-            for resource in &all_resources {
-                if let Some(resource_type) = resource.get("type").and_then(|t| t.as_str()) {
-                    tracing::debug!("Resource type found: {}", resource_type);
-                }
-            }
             
             // Filter to only include QEMU VMs and LXC containers
             let vms: Vec<Value> = all_resources.into_iter()
                 .filter(|resource| {
                     if let Some(resource_type) = resource.get("type").and_then(|t| t.as_str()) {
-                        let is_vm_or_container = resource_type == "qemu" || resource_type == "lxc";
-                        if is_vm_or_container {
-                            tracing::debug!("✓ Including {} resource: {:?}", resource_type, resource.get("name"));
-                        }
-                        is_vm_or_container
+                        resource_type == "qemu" || resource_type == "lxc"
                     } else {
                         false
                     }
                 })
                 .collect();
             
-            tracing::info!("🎯 Filtered to {} VMs/Containers", vms.len());
             Ok(vms)
         } else {
             anyhow::bail!("Failed to list Proxmox resources: {}", resp.status())
@@ -213,8 +199,6 @@ impl NodeClient for ProxmoxClient {
     }
 
     async fn get_vnc_info(&self, vm_id: &str) -> anyhow::Result<super::VncInfo> {
-        tracing::info!("🖥️ Getting VNC URL for VM: {}", vm_id);
-        
         let parts: Vec<&str> = vm_id.split('/').collect();
         let (node, vm_type, vmid) = if parts.len() == 3 {
             (parts[0], parts[1], parts[2])
@@ -223,11 +207,8 @@ impl NodeClient for ProxmoxClient {
             ("pve", "qemu", vm_id)
         };
 
-        tracing::info!("📍 Parsed VM location - Node: {}, Type: {}, VMID: {}", node, vm_type, vmid);
-
         // For LXC containers, we use vncproxy (same as QEMU)
         let proxy_url = format!("{}/api2/json/nodes/{}/{}/{}/vncproxy", self.api_url, node, vm_type, vmid);
-        tracing::info!("🔗 Requesting VNC proxy: {}", proxy_url);
         
         let resp = self.client
             .post(&proxy_url)
@@ -243,7 +224,6 @@ impl NodeClient for ProxmoxClient {
         }
 
         let data: Value = resp.json().await?;
-        tracing::debug!("VNC proxy response: {:?}", data);
         
         let ticket = data["data"]["ticket"]
             .as_str()
@@ -254,16 +234,12 @@ impl NodeClient for ProxmoxClient {
             .or_else(|| data["data"]["port"].as_str().and_then(|s| s.parse().ok()))
             .ok_or_else(|| anyhow::anyhow!("No port in VNC proxy response"))?;
 
-        tracing::info!("🎫 Got VNC ticket, port: {}", port);
-
         // Reconstruct the websocket URL
         let ws_host = self.api_url.replace("https://", "wss://").replace("http://", "ws://");
         let vnc_url = format!(
             "{}/api2/json/nodes/{}/{}/{}/vncwebsocket?port={}&vncticket={}", 
             ws_host, node, vm_type, vmid, port, urlencoding::encode(ticket)
         );
-        
-        tracing::info!("🔌 VNC WebSocket URL: {}", vnc_url);
         
         Ok(super::VncInfo {
             url: vnc_url,

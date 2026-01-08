@@ -1,6 +1,6 @@
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use futures_util::{StreamExt, SinkExt};
-use tracing::{error, info, debug};
+use tracing::{error, debug};
 use std::time::Duration;
 
 pub async fn proxy_vnc(
@@ -10,8 +10,6 @@ pub async fn proxy_vnc(
 ) -> anyhow::Result<()> {
     use tokio_tungstenite::tungstenite::handshake::client::generate_key;
     use axum::http::Request;
-
-    info!("🔌 Establishing VNC proxy connection to: {}", target_url);
 
     // Connect to the Proxmox/Incus WebSocket with auth if provided
     let mut request = Request::builder()
@@ -26,15 +24,11 @@ pub async fn proxy_vnc(
     if let Some(auth) = auth_header {
         if auth.starts_with("PVEAuthCookie=") {
             // Proxmox VNC requires ticket as Cookie header for WebSocket handshake
-            tracing::debug!("🍪 Setting Cookie header for Proxmox VNC");
-            request = request.header("Cookie", auth.clone());
+            debug!("Setting Cookie: {} (length: {})", &auth[..20.min(auth.len())], auth.len());
+            request = request.header("Cookie", auth);
         } else {
-            // Other backends use Authorization header
-            tracing::debug!("🔑 Setting Authorization header");
             request = request.header("Authorization", auth);
         }
-    } else {
-        tracing::debug!("⚠️  No auth header provided for VNC connection");
     }
 
     // Add timeout to connection establishment
@@ -50,8 +44,6 @@ pub async fn proxy_vnc(
             return Err(anyhow::anyhow!("Connection timeout"));
         }
     };
-
-    info!("✅ VNC backend connection established");
 
     let (mut backend_sender, mut backend_receiver) = backend_ws.split();
     let (mut client_sender, mut client_receiver) = client_ws.split();
@@ -139,6 +131,5 @@ pub async fn proxy_vnc(
         },
     }
 
-    info!("🔌 VNC proxy connection closed");
     Ok(())
 }

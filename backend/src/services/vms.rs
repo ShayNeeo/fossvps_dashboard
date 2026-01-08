@@ -16,8 +16,6 @@ pub async fn list_all_vms(pool: &DbPool) -> anyhow::Result<Vec<Value>> {
     let mut all_vms = Vec::new();
 
     for node in nodes {
-        tracing::info!("🔄 Refreshing VMs from node: {} ({})", node.name, node.api_url);
-        
         let vms_result = match node.node_type {
             NodeType::Proxmox => {
                 let client = ProxmoxClient::new(
@@ -39,8 +37,6 @@ pub async fn list_all_vms(pool: &DbPool) -> anyhow::Result<Vec<Value>> {
 
         match vms_result {
             Ok(mut vms) => {
-                tracing::info!("✅ Fetched {} VMs from node {}", vms.len(), node.name);
-                
                 // Update node status to online
                 let _ = sqlx::query(
                     r#"
