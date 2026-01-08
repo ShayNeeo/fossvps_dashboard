@@ -145,31 +145,32 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
         }
     }, []);
 
+    const [hasFocus, setHasFocus] = useState(false);
+
     // Focus handling for keyboard events
     useEffect(() => {
         if (!isConnecting && rfbRef.current) {
             console.log("[VNCClient] Connection established, requesting focus");
-            // Give the browser a moment to settle before focusing
             const timer = setTimeout(() => {
-                const container = canvasRef.current;
-                if (container) {
-                    container.focus();
-                }
-            }, 100);
+                canvasRef.current?.focus();
+            }, 150);
             return () => clearTimeout(timer);
         }
     }, [isConnecting]);
 
-    const handleCanvasClick = () => {
-        if (canvasRef.current) {
-            canvasRef.current.focus();
-        }
+    const handleFocusCapture = (e: React.MouseEvent) => {
+        console.log("[VNCClient] Capturing focus via", e.type);
+        canvasRef.current?.focus();
     };
 
     return (
-        <div className="w-full h-full relative bg-card" onClick={handleCanvasClick}>
+        <div
+            className="w-full h-full relative bg-black group"
+            onMouseDown={handleFocusCapture}
+        >
+            {/* Loading Overlay */}
             {isConnecting && (
-                <div className="absolute inset-0 flex items-center justify-center bg-card/95 backdrop-blur-sm z-10 pointer-events-none">
+                <div className="absolute inset-0 flex items-center justify-center bg-card/95 backdrop-blur-sm z-30 pointer-events-none">
                     <div className="flex flex-col items-center gap-4 p-8 glass-surface rounded-2xl pointer-events-auto">
                         <div className="relative">
                             <div className="w-12 h-12 border-3 border-primary/20 rounded-full" />
@@ -182,12 +183,50 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
                     </div>
                 </div>
             )}
+
+            {/* Click to Focus Overlay (Only shown when connected but not focused) */}
+            {!isConnecting && !hasFocus && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-[1px] pointer-events-none group-hover:bg-black/20 transition-colors">
+                    <div className="px-4 py-2 rounded-full bg-primary/20 border border-primary/30 text-primary text-xs font-bold tracking-widest uppercase animate-pulse backdrop-blur-md">
+                        Click Terminal to Type
+                    </div>
+                </div>
+            )}
+
+            {/* Focus Indicator */}
+            {!isConnecting && (
+                <div className={cn(
+                    "absolute top-4 right-4 z-20 flex items-center gap-2 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-tighter transition-all",
+                    hasFocus ? "bg-success/20 text-success border border-success/30" : "bg-muted/20 text-muted-foreground border border-white/10"
+                )}>
+                    <div className={cn("w-1.5 h-1.5 rounded-full", hasFocus ? "bg-success animate-pulse" : "bg-muted-foreground")} />
+                    {hasFocus ? "Keyboard Active" : "Input Inactive"}
+                </div>
+            )}
+
+            {/* VNC Canvas Container */}
             <div
                 ref={canvasRef}
                 tabIndex={0}
-                className="w-full h-full bg-neutral-900 outline-none focus:ring-1 focus:ring-primary/20"
-                style={{ minHeight: "400px" }}
+                onFocus={() => {
+                    console.log("[VNCClient] Terminal Focused");
+                    setHasFocus(true);
+                }}
+                onBlur={() => {
+                    console.log("[VNCClient] Terminal Blurred");
+                    setHasFocus(false);
+                }}
+                className={cn(
+                    "w-full h-full bg-neutral-900 outline-none transition-all duration-300 cursor-crosshair",
+                    "ring-inset focus:ring-[6px] focus:ring-primary/40"
+                )}
+                style={{ minHeight: "600px" }}
             />
         </div>
     );
+}
+
+// Helper to keep imports clean
+function cn(...classes: any[]) {
+    return classes.filter(Boolean).join(" ");
 }
