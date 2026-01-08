@@ -147,26 +147,36 @@ export default function VNCClient({ nodeId, vmId, ticket, port, onStatusChange }
 
     const [hasFocus, setHasFocus] = useState(false);
 
-    // Focus handling for keyboard events
+    // Enhanced focus management to grab the VNC session
     useEffect(() => {
-        if (!isConnecting && rfbRef.current) {
-            console.log("[VNCClient] Connection established, requesting focus");
-            const timer = setTimeout(() => {
-                canvasRef.current?.focus();
-            }, 150);
-            return () => clearTimeout(timer);
+        if (hasFocus && rfbRef.current) {
+            // Explicitly tell noVNC to grab keyboard focus
+            try {
+                rfbRef.current.focus();
+                console.log("[VNCClient] Called rfb.focus() - keyboard should now work");
+            } catch (e) {
+                console.warn("[VNCClient] Could not call rfb.focus():", e);
+            }
+        } else if (!hasFocus && rfbRef.current) {
+            // Release keyboard focus when container is blurred
+            try {
+                rfbRef.current.blur();
+                console.log("[VNCClient] Called rfb.blur() - keyboard released");
+            } catch (e) {
+                console.warn("[VNCClient] Could not call rfb.blur():", e);
+            }
         }
-    }, [isConnecting]);
+    }, [hasFocus]);
 
-    const handleFocusCapture = (e: React.MouseEvent) => {
-        console.log("[VNCClient] Capturing focus via", e.type);
-        canvasRef.current?.focus();
+    const handleContainerClick = () => {
+        // Ensure the container gets focus when clicked
+        canvasRef.current?.focus({ preventScroll: true });
     };
 
     return (
         <div
             className="w-full h-full relative bg-black group"
-            onMouseDown={handleFocusCapture}
+            onMouseDown={handleContainerClick}
         >
             {/* Loading Overlay */}
             {isConnecting && (
