@@ -1,7 +1,7 @@
-# Production compose file - uses pre-built images from GHCR (main branch)
-# Uses :latest tag from ghcr.io/shayneeo/fossvps-dashboard-*
+# Development compose file - uses pre-built images from GHCR (Development branch)
+# Uses :develop tag from ghcr.io/shayneeo/fossvps-dashboard-*
 # For local development, use docker-compose.yml
-# For Development branch, use docker-compose.develop.yml
+# For production (main branch), use docker-compose.prod.yml
 
 services:
   db:
@@ -22,7 +22,7 @@ services:
       - fossvps_network
 
   backend:
-    image: ghcr.io/shayneeo/fossvps-dashboard-backend:latest
+    image: ghcr.io/shayneeo/fossvps-dashboard-backend:develop
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME:-fossvps}
       JWT_SECRET: ${JWT_SECRET}
@@ -42,7 +42,7 @@ services:
       retries: 3
 
   frontend:
-    image: ghcr.io/shayneeo/fossvps-dashboard-frontend:latest
+    image: ghcr.io/shayneeo/fossvps-dashboard-frontend:develop
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://dashboard.w9.nu/api/v1}
       NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-wss://dashboard.w9.nu}

@@ -76,9 +76,15 @@ A premium, high-performance, futuristic "Command Center" dashboard for managing 
 3. Deploy with one click
 
 #### Manual Docker Deployment
+
+**Production (main branch - uses :latest tag):**
 ```bash
-# Use production compose file
 docker-compose -f docker-compose.prod.yml up -d
+```
+
+**Development (Development branch - uses :develop tag):**
+```bash
+docker-compose -f docker-compose.develop.yml up -d
 ```
 
 See [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) for complete deployment guide.
