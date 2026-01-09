@@ -43,8 +43,8 @@ A premium, high-performance, futuristic "Command Center" dashboard for managing 
 ### Local Development
 1. Clone the repository:
    ```bash
-   git clone https://github.com/shayneeo/fossvps_dashboard.git
-   cd fossvps_dashboard
+   git clone https://github.com/shayneeo/fossvps-dashboard.git
+   cd fossvps-dashboard
    ```
 
 2. Create environment files:
@@ -114,7 +114,7 @@ See [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) for complete deployment
 ## 🤝 Support
 For technical assistance or reporting issues:
 - Email: `support@fossvps.org`
-- GitHub Issues: [Create an issue](https://github.com/shayneeo/fossvps_dashboard/issues)
+- GitHub Issues: [Create an issue](https://github.com/shayneeo/fossvps-dashboard/issues)
 
 ## 📜 License
 This project is licensed under the **GNU General Public License v3.0**. See the [LICENSE](./LICENSE) file for details.

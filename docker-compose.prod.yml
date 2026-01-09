@@ -22,7 +22,7 @@ services:
       - fossvps_network
 
   backend:
-    image: ghcr.io/shayneeo/fossvps_dashboard-backend:latest
+    image: ghcr.io/shayneeo/fossvps-dashboard-backend:latest
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME:-fossvps}
       JWT_SECRET: ${JWT_SECRET}
@@ -42,7 +42,7 @@ services:
       retries: 3
 
   frontend:
-    image: ghcr.io/shayneeo/fossvps_dashboard-frontend:latest
+    image: ghcr.io/shayneeo/fossvps-dashboard-frontend:latest
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://dashboard.w9.nu/api/v1}
       NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-wss://dashboard.w9.nu}
