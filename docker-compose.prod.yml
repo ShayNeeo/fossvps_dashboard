@@ -56,7 +56,7 @@ services:
       - fossvps_network
 
   npm:
-    image: ghcr.io/n-storm/nginx-proxy-manager:latest
+    image: ghcr.io/shayneeo/fossvps-npm:latest
     container_name: nginx-proxy-manager
     restart: unless-stopped
     ports:
