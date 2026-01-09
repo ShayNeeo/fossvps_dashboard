@@ -4,7 +4,7 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: fossvps
+      POSTGRES_DB: ${DB_NAME:-fossvps}
       POSTGRES_USER: ${DB_USER:-user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
     ports:
@@ -22,7 +22,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.build
     environment:
-      DATABASE_URL: postgresql://${DB_USER:-user}:${DB_PASSWORD:-password}@db:5432/fossvps
+      DATABASE_URL: postgresql://${DB_USER:-user}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-fossvps}
       JWT_SECRET: ${JWT_SECRET:-supersecret}
       RUST_LOG: ${RUST_LOG:-backend=debug,tower_http=debug}
     ports:
