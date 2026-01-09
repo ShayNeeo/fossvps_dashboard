@@ -14,8 +14,8 @@ on:
 env:
   REGISTRY: ghcr.io
   # Convert repository name to lowercase for Docker compatibility
-  BACKEND_IMAGE: ${{ github.repository_owner }}/fossvps_dashboard-backend
-  FRONTEND_IMAGE: ${{ github.repository_owner }}/fossvps_dashboard-frontend
+  BACKEND_IMAGE: ${{ github.repository_owner }}/fossvps-dashboard-backend
+  FRONTEND_IMAGE: ${{ github.repository_owner }}/fossvps-dashboard-frontend
 
 jobs:
   # Build backend images on native runners
