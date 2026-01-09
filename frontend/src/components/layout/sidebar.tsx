@@ -14,7 +14,8 @@ import {
     Moon,
     Sun,
     LogOut,
-    User
+    User,
+    Globe
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,26 @@ export function Sidebar() {
                         ))}
                     </nav>
                 </div>
+
+                {user?.role === "admin" && (
+                    <div className="mt-8 mb-4">
+                        {!collapsed && <p className="px-3 text-xs font-semibold text-muted-foreground/50 uppercase tracking-widest mb-4">Admin</p>}
+                        <nav className="space-y-2">
+                            <a
+                                href="https://npm.dashboard.w9.nu"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(
+                                    "group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
+                                    "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                )}
+                            >
+                                <Globe className="h-5 w-5 shrink-0 group-hover:scale-110 transition-transform" />
+                                {!collapsed && <span className="font-medium truncate">Proxy Manager</span>}
+                            </a>
+                        </nav>
+                    </div>
+                )}
             </ScrollArea>
 
             {/* Footer Actions */}

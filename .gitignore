@@ -23,3 +23,5 @@ frontend/.env.local
 # For now I will keep it as per your previous file if that's what you intended.
 instructions/*
 VNC_SETUP.md
+.env*
+nginx-proxy-manager/

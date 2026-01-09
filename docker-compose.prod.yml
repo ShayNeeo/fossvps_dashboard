@@ -44,8 +44,8 @@ services:
   frontend:
     image: ghcr.io/shayneeo/fossvps_dashboard-frontend:latest
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.dashboard.w9.nu/api/v1}
-      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-wss://api.dashboard.w9.nu}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://dashboard.w9.nu/api/v1}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-wss://dashboard.w9.nu}
     ports:
       - "3000:3000"
     depends_on:
@@ -55,8 +55,26 @@ services:
     networks:
       - fossvps_network
 
+  npm:
+    image: ghcr.io/n-storm/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "180:80"
+      - "1443:443"
+      - "81:81"
+    environment:
+      DB_SQLITE_FILE: "/data/database.sqlite"
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - fossvps_network
+
 volumes:
   postgres_data:
+  npm_data:
+  npm_letsencrypt:
 
 networks:
   fossvps_network:

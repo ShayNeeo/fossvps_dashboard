@@ -195,7 +195,12 @@ pub async fn vnc_handler(
                             .and_then(|h| h.to_str().ok())
                             .map(|s| s.to_string());
 
-                        if let Err(e) = proxy_vnc(info.url, socket, None, origin_header).await {
+                        if let Err(e) = proxy_vnc(
+                            info.url, 
+                            socket, 
+                            Some(format!("PVEAuthCookie={}", info.ticket)), 
+                            origin_header
+                        ).await {
                             tracing::error!("VNC proxy failed for {}: {}", vm_id_path, e);
                         } else {
                             tracing::info!("VNC session completed for {}", vm_id_path);

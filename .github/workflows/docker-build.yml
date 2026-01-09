@@ -112,8 +112,8 @@ jobs:
           cache-from: type=gha,scope=frontend-${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=frontend-${{ matrix.platform }}
           build-args: |
-            NEXT_PUBLIC_API_URL=https://api.dashboard.w9.nu
-            NEXT_PUBLIC_WS_URL=wss://api.dashboard.w9.nu
+            NEXT_PUBLIC_API_URL=https://dashboard.w9.nu/api/v1
+            NEXT_PUBLIC_WS_URL=wss://dashboard.w9.nu
 
   # Merge backend manifests
   merge-backend-manifest:
