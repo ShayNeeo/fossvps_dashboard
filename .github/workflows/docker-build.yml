@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - Development
+      - dev
     paths:
       - 'backend/**'
       - 'frontend/**'
@@ -14,8 +14,8 @@ on:
 env:
   REGISTRY: ghcr.io
   # Convert repository name to lowercase for Docker compatibility
-  BACKEND_IMAGE: ${{ github.repository_owner }}/fossvps-dashboard-backend
-  FRONTEND_IMAGE: ${{ github.repository_owner }}/fossvps-dashboard-frontend
+  BACKEND_IMAGE: ${{ github.repository_owner }}/fossvps-backend
+  FRONTEND_IMAGE: ${{ github.repository_owner }}/fossvps-frontend
 
 jobs:
   # Build backend images on native runners
@@ -148,9 +148,9 @@ jobs:
               "${IMAGE}:${SHA}-arm64"
           fi
           
-          # Tag as develop if on Development branch
-          if [[ "${{ github.ref }}" == "refs/heads/Development" ]]; then
-            docker buildx imagetools create -t "${IMAGE}:develop" \
+          # Tag as dev if on dev branch
+          if [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+            docker buildx imagetools create -t "${IMAGE}:dev" \
               "${IMAGE}:${SHA}-amd64" \
               "${IMAGE}:${SHA}-arm64"
           fi
@@ -188,9 +188,9 @@ jobs:
               "${IMAGE}:${SHA}-arm64"
           fi
           
-          # Tag as develop if on Development branch
-          if [[ "${{ github.ref }}" == "refs/heads/Development" ]]; then
-            docker buildx imagetools create -t "${IMAGE}:develop" \
+          # Tag as dev if on dev branch
+          if [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+            docker buildx imagetools create -t "${IMAGE}:dev" \
               "${IMAGE}:${SHA}-amd64" \
               "${IMAGE}:${SHA}-arm64"
           fi

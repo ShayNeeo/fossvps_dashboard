@@ -1,7 +1,7 @@
 # Production Dockerfile - pulls pre-built image from GHCR
 # For building from source, use Dockerfile.build
 
-FROM ghcr.io/shayneeo/fossvps-dashboard-frontend:latest
+FROM ghcr.io/shayneeo/fossvps-frontend:latest
 
 EXPOSE 3000
 
